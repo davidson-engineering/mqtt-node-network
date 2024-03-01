@@ -8,38 +8,32 @@
 """a_short_project_description"""
 # ---------------------------------------------------------------------------
 
-import context  # Ensures paho is in PYTHONPATH
+# import context  # Ensures paho is in PYTHONPATH
 import time
 import random
-import os
+from logging.config import dictConfig
+import asyncio
 
-from dotenv import load_dotenv
-from mqtt_sensor.client import MQTTClient
-from mqtt_sensor.configuration import config
+from mqtt_sensor.mqtt import MQTTNode
+from mqtt_sensor.client import AsyncMQTTNode
+from mqtt_sensor.configuration import broker_config, logger_config
 
-load_dotenv("config/.secrets")
 
-MQTT_BROKER_HOSTNAME = config["mqtt"]["broker"]["hostname"]
-MQTT_BROKER_PORT = config["mqtt"]["broker"]["port"]
-MQTT_BROKER_USERNAME = os.getenv("MQTT_BROKER_USERNAME")
-MQTT_BROKER_PASSWORD = os.getenv("MQTT_BROKER_PASSWORD")
-MQTT_BROKER_AUTH = {"username": MQTT_BROKER_USERNAME, "password": MQTT_BROKER_PASSWORD}
+def publish():
+    publisher = MQTTNode(broker_config=broker_config, node_id="node_0")
+    publisher.publish(topic="category", payload=random.random())
 
 
 def main():
-    subscriber = MQTTClient(
-        hostname="gfyvrdatadash", auth=MQTT_BROKER_AUTH, client_id="client_0"
-    )
-    subscriber.subscribe(topic="node_0/category")
+    loop = asyncio.get_event_loop()
+    client = AsyncMQTTNode(loop, broker_config=broker_config, node_id="async_client_0")
+    client.subscribe(topic="node_0/category")
 
-    publisher = MQTTClient(
-        hostname=MQTT_BROKER_HOSTNAME, auth=MQTT_BROKER_AUTH, client_id="node_0"
-    )
-    publisher.publish(topic="category", payload=random.random())
-
-    while True:
-        time.sleep(1)
+    loop.run_until_complete(client.main())
+    loop.close()
 
 
 if __name__ == "__main__":
-    main()
+    dictConfig(logger_config)
+    # main()
+    publish()

@@ -1,6 +1,13 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Union
+import os
+
+from dotenv import load_dotenv
+
+from mqtt_sensor.mqtt import MQTTBrokerConfig
+
+load_dotenv("config/.secrets")
 
 
 def load_config(filepath: Union[str, Path]) -> dict:
@@ -39,3 +46,13 @@ def load_config(filepath: Union[str, Path]) -> dict:
 
 
 config = load_config("config/application.toml")
+
+broker_config = MQTTBrokerConfig(
+    hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
+    port=config["mqtt"]["broker"].get("port", 1883),
+    keepalive=config["mqtt"]["broker"].get("keepalive", 60),
+    username=os.getenv("MQTT_BROKER_USERNAME"),
+    password=os.getenv("MQTT_BROKER_PASSWORD"),
+)
+
+logger_config = load_config("config/logger.yaml")
