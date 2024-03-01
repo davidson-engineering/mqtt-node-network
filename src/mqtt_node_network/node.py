@@ -84,10 +84,12 @@ class MQTTNode:
         self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
         self.client_id = node_id
+
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
         self.address = (broker_config.hostname, broker_config.port)
         self.keepalive: int = broker_config.keepalive
+
         self._username: str = broker_config.username
         self._password: str = broker_config.password
         self._auth: dict = {
@@ -135,7 +137,7 @@ class MQTTNode:
         else:
             logger.info(f"Subscribed to topic: {topic}")
         
-    def unsubscribe(self, topic:Union[str, list[str]]):
+    def unsubscribe(self, topic:Union[str, list[str]], properties=None):
         '''
         :param topic: A single string, or list of strings that are the subscription
             topics to unsubscribe from.
@@ -149,6 +151,7 @@ class MQTTNode:
 
     def loop_forever(self):
         self.client.loop_forever()
+
     # Callbacks
     # ***************************************************************************
     
@@ -160,7 +163,7 @@ class MQTTNode:
         # client.subscribe(topic)
 
     def on_connect_fail(self, client, userdata):
-        logger.error("Failed to connect")
+        logger.error(f"Failed to connect to broker at {client.host}:{client.port}")
 
     def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
         logger.info(f"Disconnected with result code {reason_code}")

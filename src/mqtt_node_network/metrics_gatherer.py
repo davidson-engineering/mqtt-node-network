@@ -1,13 +1,9 @@
-
-
-
-
 from collections import deque
 import json
 from typing import Union
 
-from mqtt_sensor.node import MQTTNode
-from mqtt_sensor.configuration import MQTTBrokerConfig
+from mqtt_node_network.node import MQTTNode
+from mqtt_node_network.configuration import MQTTBrokerConfig
 
 class MQTTMetricsGatherer(MQTTNode):
     def __init__(self, broker_config: MQTTBrokerConfig, buffer: Union[list, deque] = None, name=None, node_id="", node_type=None, logger=None):

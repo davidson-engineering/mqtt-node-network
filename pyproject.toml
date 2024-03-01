@@ -1,6 +1,6 @@
 [project]
-name = "mqtt-sensor-node"
-description = "Library code to create sensor objects for an MQTT based network"
+name = "mqtt-node-network"
+description = '''This module is a wrapper around the paho-mqtt client which provides logging, error handling, and prometheus metrics.'''
 
 # If a project, then you can specify version here
 # version = "0.0.0"
@@ -36,7 +36,7 @@ dependencies = [
 
 # If a module, then use fetch version from src/module_name/__init__.py
 [tool.setuptools.dynamic]
-version = { attr = "mqtt_sensor.__version__" }
+version = { attr = "mqtt_node_network.__version__" }
 
 [project.optional-dependencies]
 test = ["pytest >= 7.1.1"]
