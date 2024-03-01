@@ -1,0 +1,49 @@
+[project]
+name = "mqtt-sensor-node"
+description = "Library code to create sensor objects for an MQTT based network"
+
+# If a project, then you can specify version here
+# version = "0.0.0"
+# If a module, then fetch version dynamically (see [tool.setuptools.dynamic] below)
+dynamic = ["version"]
+
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+  { email = "matthew@davidson.engineering" },
+  { name = "Matthew Davidson" },
+]
+
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+dependencies = ["paho-mqtt>=2.0.0", "prometheus_client>=0.20.0", "context.api>=0.0"]
+
+# If a module, then use fetch version from src/module_name/__init__.py
+[tool.setuptools.dynamic]
+version = { attr = "mqtt_sensor.__version__" }
+
+[project.optional-dependencies]
+test = ["pytest >= 7.1.1"]
+
+# [project.urls]
+# homepage = "https://example.com"
+# documentation = "https://readthedocs.org"
+# repository = "https://github.com"
+# changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+
+# [project.scripts]
+# spam-cli = "spam:main_cli"
+
+# [project.gui-scripts]
+# spam-gui = "spam:main_gui"
+
+# [project.entry-points."spam.magical"]
+# tomatoes = "spam:main_tomatoes"
