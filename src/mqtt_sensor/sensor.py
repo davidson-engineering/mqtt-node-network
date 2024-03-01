@@ -1,4 +1,4 @@
-from mqtt_sensor.mqtt import MQTTNode
+from mqtt_sensor.node import MQTTNode
 
 
 class SensorNode(MQTTNode):

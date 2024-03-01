@@ -5,7 +5,7 @@ import os
 
 from dotenv import load_dotenv
 
-from mqtt_sensor.mqtt import MQTTBrokerConfig
+from mqtt_sensor.node import MQTTBrokerConfig
 
 load_dotenv("config/.secrets")
 

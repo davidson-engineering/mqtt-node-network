@@ -4,7 +4,7 @@ handlers:
   console:
     class : logging.StreamHandler
     formatter: default
-    level   : INFO
+    level   : DEBUG
     stream  : ext://sys.stdout
   mqtt_node_network.debug.file:
     class : logging.handlers.RotatingFileHandler
@@ -35,7 +35,7 @@ formatters:
     format: '%(asctime)s %(levelname)s %(message)s'
 
 loggers:
-  root:
+  mqtt_sensor:
     level: DEBUG
     handlers:
       - console

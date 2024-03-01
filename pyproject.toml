@@ -24,7 +24,15 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = ["paho-mqtt>=2.0.0", "prometheus_client>=0.20.0", "context.api>=0.0"]
+dependencies = [
+  "paho-mqtt>=2.0.0",
+  "prometheus_client>=0.20.0",
+  "context.api>=0.0",
+  "python-dotenv==1.0.1",
+  "tomli==2.0.1",
+  "PyYAML==6.0.1",
+  "python-json-logger==2.0.7",
+]
 
 # If a module, then use fetch version from src/module_name/__init__.py
 [tool.setuptools.dynamic]
