@@ -1,3 +1,4 @@
+secrets_filepath = ".env"
 [mqtt.broker]
 hostname = "gfyvrdatadash"
 port = 1_883

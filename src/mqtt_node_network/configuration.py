@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 from mqtt_node_network.node import MQTTBrokerConfig
 
-load_dotenv("config/.secrets")
 
 
 def load_config(filepath: Union[str, Path]) -> dict:
@@ -46,6 +45,8 @@ def load_config(filepath: Union[str, Path]) -> dict:
 
 
 config = load_config("config/application.toml")
+
+load_dotenv(config["secrets_filepath"])
 
 broker_config = MQTTBrokerConfig(
     hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
