@@ -4,22 +4,22 @@ handlers:
   console:
     class : logging.StreamHandler
     formatter: default
-    level   : INFO
+    level   : DEBUG
     stream  : ext://sys.stdout
   mqtt_node_network.debug.file:
     class : logging.handlers.RotatingFileHandler
     formatter: json
     level   : DEBUG
     filename: logs/mqtt_node_network.debug.log
-    maxBytes: 1_000_000
-    backupCount: 3
+    maxBytes: 10_000_000
+    backupCount: 7
   mqtt_node_network.info.file:
     class : logging.handlers.RotatingFileHandler
     formatter: json
     level   : INFO
     filename: logs/mqtt_node_network.info.log
-    maxBytes: 1_000_000
-    backupCount: 3
+    maxBytes: 10_000_000
+    backupCount: 7
 
 formatters:
   brief:
@@ -35,7 +35,7 @@ formatters:
     format: '%(asctime)s %(levelname)s %(message)s'
 
 loggers:
-  root:
+  mqtt_node_network:
     level: DEBUG
     handlers:
       - console
