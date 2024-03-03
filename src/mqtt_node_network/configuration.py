@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 
 from mqtt_node_network.node import MQTTBrokerConfig
 
-load_dotenv("config/.secrets")
-
 
 def load_config(filepath: Union[str, Path]) -> dict:
     if isinstance(filepath, str):
@@ -57,6 +55,8 @@ config_defaults = load_config("config/application-defaults.toml")
 # Merge the two configurations, with the local configuration taking precedence
 config = config_local | config_defaults
 
+load_dotenv(config["secrets_filepath"])
+
 PROMETHEUS_ENABLE = config["mqtt"]["node_network"]["enable_prometheus_server"]
 PROMETHEUS_PORT = config["mqtt"]["node_network"]["prometheus_port"]
 
@@ -64,9 +64,9 @@ if PROMETHEUS_ENABLE:
     start_prometheus_server(PROMETHEUS_PORT)
 
 broker_config = MQTTBrokerConfig(
-    hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
-    port=config["mqtt"]["broker"].get("port", 1883),
-    keepalive=config["mqtt"]["broker"].get("keepalive", 60),
+    hostname=config["mqtt"]["broker"]["hostname"],
+    port=config["mqtt"]["broker"]["port"],
+    keepalive=config["mqtt"]["broker"]["keepalive"],
     username=os.getenv("MQTT_BROKER_USERNAME"),
     password=os.getenv("MQTT_BROKER_PASSWORD"),
 )

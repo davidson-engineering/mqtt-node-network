@@ -1,9 +1,11 @@
 from collections import deque
 import json
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.configuration import MQTTBrokerConfig
+
+if TYPE_CHECKING:
+    from mqtt_node_network.configuration import MQTTBrokerConfig
 
 
 class MQTTMetricsClient(MQTTNode):
