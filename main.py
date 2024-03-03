@@ -21,7 +21,7 @@ from logging.config import dictConfig
 
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.client import MQTTClient
-from mqtt_node_network.configuration import broker_config, logger_config
+from mqtt_node_network.configure import broker_config, logger_config
 
 SUBSCRIBER_NODE_ID = "node_subscriber_0"
 PUBLISHER_NODE_ID = "node_publisher_0"

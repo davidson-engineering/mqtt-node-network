@@ -50,10 +50,16 @@ def start_prometheus_server(port=8000):
     start_http_server(port)
 
 
-config_local = load_config("config/application.toml")
-config_defaults = load_config("config/application-defaults.toml")
-# Merge the two configurations, with the local configuration taking precedence
-config = config_local | config_defaults
+def build_config(filepath: str = "config/application.toml") -> dict:
+    # Define default configuration
+    from mqtt_node_network.config_default import config_defaults
+
+    config_local = load_config("config/application.toml")
+    # Merge the two configurations, with the local configuration taking precedence
+    return config_local | config_defaults
+
+
+config = build_config()
 
 load_dotenv(config["secrets_filepath"])
 

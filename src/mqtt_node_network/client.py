@@ -5,7 +5,7 @@ from typing import Union, TYPE_CHECKING
 from mqtt_node_network.node import MQTTNode
 
 if TYPE_CHECKING:
-    from mqtt_node_network.configuration import MQTTBrokerConfig
+    from mqtt_node_network.configure import MQTTBrokerConfig
 
 
 class MQTTClient(MQTTNode):
