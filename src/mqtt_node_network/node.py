@@ -19,12 +19,14 @@ from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
 
+
 def shorten_data(data: str, max_length: int = 75) -> str:
     """Shorten data to a maximum length."""
     if not isinstance(data, str):
         data = str(data)
     data = data.strip()
     return data[:max_length] + "..." if len(data) > max_length else data
+
 
 def convert_bytes_to_human_readable(num: float) -> str:
     """Convert bytes to a human-readable format."""
@@ -33,6 +35,7 @@ def convert_bytes_to_human_readable(num: float) -> str:
             return f"{num:.2f} {unit}"
         num /= 1024.0
     return f"{num:.2f} {unit}"
+
 
 class NodeError(Exception):
     def __init__(self, message):
@@ -78,7 +81,12 @@ class MQTTNode:
     )
 
     def __init__(
-        self, broker_config: MQTTBrokerConfig, name=None, node_id="", node_type=None, logger=None
+        self,
+        broker_config: MQTTBrokerConfig,
+        name=None,
+        node_id="",
+        node_type=None,
+        logger=None,
     ):
         self.name = name
         self.node_id = node_id or self._get_id()
@@ -99,12 +107,14 @@ class MQTTNode:
 
         # Initialize client
         self.client = mqtt.Client(
-            mqtt.CallbackAPIVersion.VERSION2, client_id=self.node_id, protocol=mqtt.MQTTv5
+            mqtt.CallbackAPIVersion.VERSION2,
+            client_id=self.node_id,
+            protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
         if logger:
             self.client.enable_logger(logger)
-        
+
         # Set client callbacks
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
@@ -119,8 +129,8 @@ class MQTTNode:
         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         return self
 
-    def subscribe(self, topic:Union[str, tuple, list[tuple]]=("#", 0), qos:int=0):
-        '''
+    def subscribe(self, topic: Union[str, tuple, list[tuple]] = ("#", 0), qos: int = 0):
+        """
         Subscribe to a topic
         :topic: Can be a string, a tuple, or a list of tuple of format (topic, qos). Both topic and qos must
                be present in all of the tuples.
@@ -130,22 +140,25 @@ class MQTTNode:
         subscribe("my/topic", options=SubscribeOptions(qos=2))
         subscribe(("my/topic", 1))
         subscribe([("my/topic", 0), ("another/topic", 2)])
-        '''
+        """
         result = self.client.subscribe(topic, qos)
         if result[0] == 4:
-            logger.error(f"Failed to subscribe to topic: {topic}", extra={"reason_code": mqtt.error_string(result[0])})
+            logger.error(
+                f"Failed to subscribe to topic: {topic}",
+                extra={"reason_code": mqtt.error_string(result[0])},
+            )
         else:
             logger.info(f"Subscribed to topic: {topic}")
-        
-    def unsubscribe(self, topic:Union[str, list[str]], properties=None):
-        '''
+
+    def unsubscribe(self, topic: Union[str, list[str]], properties=None):
+        """
         :param topic: A single string, or list of strings that are the subscription
             topics to unsubscribe from.
         :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
             to be included. Optional - if not set, no properties are sent.
-        '''
+        """
         return self.client.unsubscribe(topic)
-    
+
     def publish(self, topic, payload, qos=0, retain=False):
         return self.client.publish(topic, payload, qos, retain)
 
@@ -154,7 +167,7 @@ class MQTTNode:
 
     # Callbacks
     # ***************************************************************************
-    
+
     def on_pre_connect(self, client, userdata):
         logger.info(f"Connecting to broker at {client.host}:{client.port}")
 
@@ -165,7 +178,9 @@ class MQTTNode:
     def on_connect_fail(self, client, userdata):
         logger.error(f"Failed to connect to broker at {client.host}:{client.port}")
 
-    def on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties):
+    def on_disconnect(
+        self, client, userdata, disconnect_flags, reason_code, properties
+    ):
         logger.info(f"Disconnected with result code {reason_code}")
 
     def on_message(self, client, userdata, message):
@@ -180,24 +195,22 @@ class MQTTNode:
     def on_publish(self, client, userdata, mid, reason_code, properties):
         self.node_messages_sent_count.labels(
             self.node_id, self.name, self.node_type, self.hostname
-        ).inc()        
+        ).inc()
         logger.debug("Published message: {}".format(mid))
-    
+
     def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
         logger.info("Subscribed to topic")
-    
+
     def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
         logger.info("Unsubscribed from topic")
 
     def on_log(self, client, userdata, level, buf):
         logger.debug("Log: {}".format(buf))
-    
+
     def _get_id(self):
         # Return a unique id for each node
         return f"{self.node_type}_{next(self._ids)}"
-    
+
     def __del__(self):
         self.client.disconnect()
         logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
-
-

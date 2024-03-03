@@ -163,4 +163,4 @@ cython_debug/
 .vscode/
 *.code-workspace
 .env
-config/.secrets
+config/.*

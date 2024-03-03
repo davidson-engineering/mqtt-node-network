@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Union
 import os
+from logging.config import dictConfig
 
 from dotenv import load_dotenv
 
@@ -45,7 +46,19 @@ def load_config(filepath: Union[str, Path]) -> dict:
         return file.read()
 
 
+def start_prometheus_server(port=8000):
+    from prometheus_client import start_http_server
+
+    start_http_server(port)
+
+
 config = load_config("config/application.toml")
+
+PROMETHEUS_ENABLE = config["mqtt"]["node_network"]["enable_prometheus_server"]
+PROMETHEUS_PORT = config["mqtt"]["node_network"]["prometheus_port"]
+
+if PROMETHEUS_ENABLE:
+    start_prometheus_server(PROMETHEUS_PORT)
 
 broker_config = MQTTBrokerConfig(
     hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
@@ -56,3 +69,13 @@ broker_config = MQTTBrokerConfig(
 )
 
 logger_config = load_config("config/logger.yaml")
+
+
+def setup_logging(logger_config):
+    from pathlib import Path
+
+    Path.mkdir(Path("logs"), exist_ok=True)
+    return dictConfig(logger_config)
+
+
+setup_logging(logger_config)
