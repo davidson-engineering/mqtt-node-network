@@ -8,13 +8,13 @@ if TYPE_CHECKING:
     from mqtt_node_network.configuration import MQTTBrokerConfig
 
 
-class MQTTMetricsClient(MQTTNode):
+class MQTTClient(MQTTNode):
     def __init__(
         self,
         broker_config: MQTTBrokerConfig,
         buffer: Union[list, deque] = None,
         name=None,
-        node_id="",
+        node_id=None,
         node_type=None,
         logger=None,
     ):

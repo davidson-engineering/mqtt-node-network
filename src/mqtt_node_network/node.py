@@ -85,14 +85,15 @@ class MQTTNode:
         self,
         broker_config: MQTTBrokerConfig,
         name=None,
-        node_id="",
+        node_id=None,
         node_type=None,
         logger=None,
+        client_id=None,
     ):
         self.name = name
         self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
-        self.client_id = node_id
+        self.client_id = client_id or self.node_id
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -109,7 +110,7 @@ class MQTTNode:
         # Initialize client
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
-            client_id=self.node_id,
+            client_id=self.client_id,
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
@@ -130,9 +131,7 @@ class MQTTNode:
         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         return self
 
-    def subscribe(
-        self, topics: Union[str, tuple, list[tuple]] = ("#", 0), qos: int = 0
-    ):
+    def subscribe(self, topic: Union[str, tuple, list[tuple]] = "#", qos: int = 0):
         """
         Subscribe to a topic
         :topic: Can be a string, a tuple, or a list of tuple of format (topic, qos). Both topic and qos must
@@ -144,18 +143,19 @@ class MQTTNode:
         subscribe(("my/topic", 1))
         subscribe([("my/topic", 0), ("another/topic", 2)])
         """
-        if isinstance(topics, str):
-            topics = (topics, SubscribeOptions(qos))
-        elif isinstance(topics, tuple):
-            topics = tuple((topic, SubscribeOptions(qos)) for topic in topics)
-        result = self.client.subscribe(topics)
+
+        if isinstance(topic, str):
+            topic = (topic, SubscribeOptions(qos))
+        elif isinstance(topic, tuple):
+            topic = tuple((topic_, SubscribeOptions(qos)) for topic_ in topic)
+        result = self.client.subscribe(topic)
         if result[0] == 4:
             logger.error(
-                f"Failed to subscribe to topic(s): {[topic for topic in topics]}",
+                f"Failed to subscribe to topic(s): {[topic_ for topic_ in topic]}",
                 extra={"reason_code": mqtt.error_string(result[0])},
             )
         else:
-            logger.info(f"Subscribed to topic(s): {[topic for topic in topics]}")
+            logger.info(f"Subscribed to topic(s): {[topic_ for topic_ in topic]}")
 
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """
