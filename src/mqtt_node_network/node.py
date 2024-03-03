@@ -15,6 +15,7 @@ import socket
 from typing import Union
 
 import paho.mqtt.client as mqtt
+from mqtt import SubscribeOptions
 from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
@@ -129,7 +130,9 @@ class MQTTNode:
         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list[tuple]] = ("#", 0), qos: int = 0):
+    def subscribe(
+        self, topics: Union[str, tuple, list[tuple]] = ("#", 0), qos: int = 0
+    ):
         """
         Subscribe to a topic
         :topic: Can be a string, a tuple, or a list of tuple of format (topic, qos). Both topic and qos must
@@ -141,14 +144,18 @@ class MQTTNode:
         subscribe(("my/topic", 1))
         subscribe([("my/topic", 0), ("another/topic", 2)])
         """
-        result = self.client.subscribe(topic, qos)
+        if isinstance(topics, str):
+            topics = (topics, SubscribeOptions(qos))
+        elif isinstance(topics, tuple):
+            topics = tuple((topic, SubscribeOptions(qos)) for topic in topics)
+        result = self.client.subscribe(topics)
         if result[0] == 4:
             logger.error(
-                f"Failed to subscribe to topic: {topic}",
+                f"Failed to subscribe to topic(s): {[topic for topic in topics]}",
                 extra={"reason_code": mqtt.error_string(result[0])},
             )
         else:
-            logger.info(f"Subscribed to topic: {topic}")
+            logger.info(f"Subscribed to topic(s): {[topic for topic in topics]}")
 
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """

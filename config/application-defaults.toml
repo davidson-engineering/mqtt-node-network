@@ -1,12 +1,12 @@
 secrets_filepath = ".env"
 
 [mqtt.broker]
-hostname = "pi-monitor.local"
+hostname = "localhost"
 port = 1_883
 
 [mqtt.node_network]
-enable_prometheus_server = true
-prometheus_port = 8_001
+enable_prometheus_server = false
+prometheus_port = 8_000
 
 [mqtt.subscriber]
 node_id = "node-subscriber-0"

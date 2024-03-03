@@ -52,7 +52,10 @@ def start_prometheus_server(port=8000):
     start_http_server(port)
 
 
-config = load_config("config/application.toml")
+config_local = load_config("config/application.toml")
+config_defaults = load_config("config/application-defaults.toml")
+# Merge the two configurations, with the local configuration taking precedence
+config = config_local | config_defaults
 
 PROMETHEUS_ENABLE = config["mqtt"]["node_network"]["enable_prometheus_server"]
 PROMETHEUS_PORT = config["mqtt"]["node_network"]["prometheus_port"]
