@@ -32,7 +32,6 @@ dependencies = [
   "tomli==2.0.1",
   "PyYAML==6.0.1",
   "python-json-logger==2.0.7",
-  "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.0.5",
 ]
 
 # If a module, then use fetch version from src/module_name/__init__.py
