@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 
 from mqtt_node_network.node import MQTTBrokerConfig
 
+CONFIG_FILEPATH = "config/config.toml"
+
 
 def load_config(filepath: Union[str, Path]) -> dict:
     if isinstance(filepath, str):
@@ -50,11 +52,11 @@ def start_prometheus_server(port=8000):
     start_http_server(port)
 
 
-def build_config(filepath: str = "config/application.toml") -> dict:
+def build_config(filepath: str = CONFIG_FILEPATH) -> dict:
     # Define default configuration
     from mqtt_node_network.config_default import config_defaults
 
-    config_local = load_config("config/application.toml")
+    config_local = load_config(filepath)
     # Merge the two configurations, with the local configuration taking precedence
     return config_local | config_defaults
 
