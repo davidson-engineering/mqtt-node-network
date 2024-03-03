@@ -7,11 +7,3 @@ port = 1_883
 [mqtt.node_network]
 enable_prometheus_server = false
 prometheus_port = 8_000
-
-[mqtt.node]
-node_id = "node-0"
-subscribe_topics = [
-  "#",
-]
-publish_period = 10
-publish_qos = 0
