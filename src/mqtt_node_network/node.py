@@ -15,7 +15,7 @@ import socket
 from typing import Union
 
 import paho.mqtt.client as mqtt
-from mqtt import SubscribeOptions
+from paho.mqtt.client import SubscribeOptions
 from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
