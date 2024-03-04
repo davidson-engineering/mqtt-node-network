@@ -3,7 +3,7 @@ secrets_filepath = ".env"
 [mqtt.broker]
 hostname = "localhost"
 port = 1_883
-keepalive = 60
+keepalive = 50
 
 [mqtt.node_network]
 enable_prometheus_server = false

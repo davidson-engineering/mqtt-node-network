@@ -52,13 +52,39 @@ def start_prometheus_server(port=8000):
     start_http_server(port)
 
 
+def merge_dicts_recursive(dict1, dict2):
+    """
+    Recursively merge two dictionaries. dict2 takes precedence over dict1.
+
+    Args:
+    - dict1: The first dictionary.
+    - dict2: The second dictionary.
+
+    Returns:
+    - Merged dictionary.
+    """
+    merged_dict = dict1.copy()
+
+    for key, value in dict2.items():
+        if (
+            key in merged_dict
+            and isinstance(merged_dict[key], dict)
+            and isinstance(value, dict)
+        ):
+            merged_dict[key] = merge_dicts_recursive(merged_dict[key], value)
+        else:
+            merged_dict[key] = value
+
+    return merged_dict
+
+
 def build_config(filepath: str = CONFIG_FILEPATH) -> dict:
     # Define default configuration
     from mqtt_node_network.config_default import config_defaults
 
     config_local = load_config(filepath)
     # Merge the two configurations, with the local configuration taking precedence
-    return config_defaults | config_local
+    return merge_dicts_recursive(config_defaults, config_local)
 
 
 config = build_config()
