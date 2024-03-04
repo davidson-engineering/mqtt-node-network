@@ -15,7 +15,6 @@ import socket
 from typing import Union
 
 import paho.mqtt.client as mqtt
-from paho.mqtt.client import SubscribeOptions
 from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
@@ -145,9 +144,9 @@ class MQTTNode:
         """
 
         if isinstance(topic, str):
-            topic = (topic, SubscribeOptions(qos))
+            topic = (topic, mqtt.SubscribeOptions(qos))
         elif isinstance(topic, tuple):
-            topic = tuple((topic_, SubscribeOptions(qos)) for topic_ in topic)
+            topic = tuple((topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic)
         result = self.client.subscribe(topic)
         if result[0] == 4:
             logger.error(
