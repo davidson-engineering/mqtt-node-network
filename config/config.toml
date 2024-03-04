@@ -8,6 +8,3 @@ keepalive = 60
 [mqtt.node_network]
 enable_prometheus_server = false
 prometheus_port = 8_000
-
-
-

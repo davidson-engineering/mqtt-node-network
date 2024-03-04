@@ -58,7 +58,7 @@ def build_config(filepath: str = CONFIG_FILEPATH) -> dict:
 
     config_local = load_config(filepath)
     # Merge the two configurations, with the local configuration taking precedence
-    return config_local | config_defaults
+    return config_defaults | config_local
 
 
 config = build_config()
