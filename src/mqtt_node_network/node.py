@@ -167,6 +167,7 @@ class MQTTNode:
 
     def loop_start(self):
         self.client.loop_start()
+        return self
 
     # Callbacks
     # ***************************************************************************
