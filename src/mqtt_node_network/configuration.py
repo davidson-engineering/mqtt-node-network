@@ -53,6 +53,8 @@ broker_config = MQTTBrokerConfig(
     keepalive=config["mqtt"]["broker"].get("keepalive", 60),
     username=os.getenv("MQTT_BROKER_USERNAME"),
     password=os.getenv("MQTT_BROKER_PASSWORD"),
+    timeout=config["mqtt"]["broker"].get("timeout", 5),
+    reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
 )
 
 logger_config = load_config("config/logger.yaml")

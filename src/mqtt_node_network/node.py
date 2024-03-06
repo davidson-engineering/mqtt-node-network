@@ -13,6 +13,7 @@ import logging
 import itertools
 import socket
 from typing import Union
+import time
 
 import paho.mqtt.client as mqtt
 from prometheus_client import Counter
@@ -35,6 +36,14 @@ def convert_bytes_to_human_readable(num: float) -> str:
             return f"{num:.2f} {unit}"
         num /= 1024.0
     return f"{num:.2f} {unit}"
+
+
+def extend_or_append(list_topics, topic):
+    for item in topic:
+        if isinstance(item, tuple):
+            extend_or_append(list_topics, item)
+        else:
+            list_topics.append(item)
 
 
 class NodeError(Exception):
@@ -87,16 +96,20 @@ class MQTTNode:
         node_id="",
         node_type=None,
         logger=None,
+        subscriptions: list = None,
     ):
         self.name = name
         self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
         self.client_id = node_id
+        self.subscriptions = subscriptions or []
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
         self.address = (broker_config.hostname, broker_config.port)
         self.keepalive: int = broker_config.keepalive
+        self.timeout: int = broker_config.timeout
+        self.reconnect_attempts: int = broker_config.reconnect_attempts
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
@@ -120,8 +133,8 @@ class MQTTNode:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
-        self.client.on_subscribe = self.on_subscribe
-        self.client.on_unsubscribe = self.on_unsubscribe
+        # self.client.on_subscribe = self.on_subscribe
+        # self.client.on_unsubscribe = self.on_unsubscribe
         # self.client.on_log = self.on_log
 
     def connect(self):
@@ -129,19 +142,20 @@ class MQTTNode:
         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list[tuple]] = ("#", 0), qos: int = 0):
+    def subscribe(self, topic: str, qos: int = 0):
         """
         Subscribe to a topic
-        :topic: Can be a string, a tuple, or a list of tuple of format (topic, qos). Both topic and qos must
-               be present in all of the tuples.
+        :topic: str
         :qos, options and properties: Not used.
 
-        e.g. subscribe("my/topic", 2)
-        subscribe("my/topic", options=SubscribeOptions(qos=2))
-        subscribe(("my/topic", 1))
-        subscribe([("my/topic", 0), ("another/topic", 2)])
         """
-        result = self.client.subscribe(topic, qos)
+
+        if isinstance(topic, str):
+            topic = (topic, mqtt.SubscribeOptions(qos))
+        else:
+            assert isinstance(topic, tuple)
+
+        result = self.client.subscribe(topic)
         if result[0] == 4:
             logger.error(
                 f"Failed to subscribe to topic: {topic}",
@@ -150,6 +164,9 @@ class MQTTNode:
         else:
             logger.info(f"Subscribed to topic: {topic}")
 
+        # Add the topic to the list of subscriptions
+        self.add_subscription_topic(topic, qos)
+
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """
         :param topic: A single string, or list of strings that are the subscription
@@ -157,9 +174,26 @@ class MQTTNode:
         :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
             to be included. Optional - if not set, no properties are sent.
         """
+        # TODO remove from self.subscriptions
         return self.client.unsubscribe(topic)
 
+    def add_subscription_topic(self, topic: str, qos: int = 0):
+        if isinstance(topic, str):
+            topic = (topic, mqtt.SubscribeOptions(qos))
+        if topic not in self.subscriptions:
+            self.subscriptions.append(topic)
+
+    def restore_subscriptions(self):
+        for topic in self.subscriptions:
+            self.subscribe(topic)
+
     def publish(self, topic, payload, qos=0, retain=False):
+        while (self.client.is_connected() is False) and (
+            reconnects < self.reconnect_attempts
+        ):
+            self.client.reconnect()
+            time.sleep(self.timeout)
+            reconnects += 1
         return self.client.publish(topic, payload, qos, retain)
 
     def loop_forever(self):
@@ -177,7 +211,7 @@ class MQTTNode:
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         logger.info(f"Connected to broker at {client.host}:{client.port}")
-        # client.subscribe(topic)
+        self.restore_subscriptions()
 
     def on_connect_fail(self, client, userdata):
         logger.error(f"Failed to connect to broker at {client.host}:{client.port}")
@@ -205,11 +239,11 @@ class MQTTNode:
         ).inc()
         logger.debug("Published message: {}".format(mid))
 
-    def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
-        logger.info("Subscribed to topic")
+    # def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
+    #     logger.info("Subscribed to topic")
 
-    def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
-        logger.info("Unsubscribed from topic")
+    # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
+    #     logger.info("Unsubscribed from topic")
 
     def on_log(self, client, userdata, level, buf):
         logger.debug("Log: {}".format(buf))
