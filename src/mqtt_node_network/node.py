@@ -190,13 +190,17 @@ class MQTTNode:
             self.subscribe(topic)
 
     def reconnect(self):
-        reconnects = 0
-        while (self.client.is_connected() is False) and (
-            reconnects < self.reconnect_attempts
-        ):
-            self.client.reconnect()
-            time.sleep(self.timeout)
+        reconnects = 1
+        while self.client.is_connected() is False:
+            try:
+                self.client.reconnect()
+            except ConnectionRefusedError:
+                logger.error(
+                    f"Failed to reconnect to broker at {self.hostname}:{self.port}"
+                )
             reconnects += 1
+            logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
+            time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False):
         if self.client.is_connected() is False:

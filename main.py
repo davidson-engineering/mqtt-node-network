@@ -33,7 +33,9 @@ def setup_logging(logger_config):
 
 
 def publish_forever():
-    client = MQTTNode(broker_config=broker_config, node_id="node_0").connect()
+    client = (
+        MQTTNode(broker_config=broker_config, node_id="node_0").connect().loop_start()
+    )
 
     while True:
         data = random.random()
@@ -44,16 +46,19 @@ def publish_forever():
 
 def subscribe_forever():
     buffer = []
-    client = MQTTMetricsGatherer(
-        broker_config=broker_config, node_id="client_0", buffer=buffer
-    ).connect()
+    client = (
+        MQTTMetricsGatherer(
+            broker_config=broker_config, node_id="client_0", buffer=buffer
+        )
+        .connect()
+        .loop_start()
+    )
     client.subscribe(topic="pzero/#", qos=0)
-    client.loop_forever()
 
 
 if __name__ == "__main__":
     setup_logging(logger_config)
-    threading.Thread(target=publish_forever).start()
-    threading.Thread(target=subscribe_forever).start()
+    publish_forever()
+    subscribe_forever()
 
 #
