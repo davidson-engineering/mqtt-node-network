@@ -194,7 +194,10 @@ class MQTTNode:
         self.node_bytes_received_count.labels(
             self.node_id, self.name, self.node_type, self.hostname
         ).inc(len(message.payload))
-        logger.info(f"Received message: {shorten_data(message.payload.decode())}")
+        logger.info(
+            f"Received message on topic '{message.topic}': {shorten_data(message.payload.decode())}",
+            extra={"topic": message.topic, "qos": message.qos},
+        )
 
     def on_publish(self, client, userdata, mid, reason_code, properties):
         self.node_messages_sent_count.labels(

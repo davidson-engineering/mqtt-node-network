@@ -31,22 +31,32 @@ class Metric(Mapping):
 
 
 def parse_topic(topic: str, structure: str) -> tuple[dict, str]:
-    topic_parts = topic.split("/")
-    structure_parts = structure.split("/")
+    topic_parts = topic.rstrip("/").split("/")
+    structure_parts = structure.rstrip("/").split("/")
+    len_diff = len(topic_parts) - len(structure_parts)
+    if structure_parts[-1].endswith("*"):
+        len_field = len_diff + 1
+        structure_parts[-1] = structure_parts[-1][:-1]
+    else:
+        if len_diff <= 0:
+            len_field = 1
+        else:
+            message = f"Metric not processed. Topic is too long for the given structure"
+            extra = {"topic": topic, "structure": structure}
+            logger.error(message, extra=extra)
+            raise ValueError(f"{message}; {extra}")
 
-    len_field = len(topic_parts) - len(structure_parts) + 1
-
-    if len_field < 0:
+    if len_field <= 0 or len_diff < 0:
         message = f"Metric not processed. Topic is too short for the given structure"
         extra = {"topic": topic, "structure": structure}
         logger.error(message, extra=extra)
         raise ValueError(f"{message}; {extra}")
 
-    other_parts = topic_parts[: len_field + 1]
+    other_parts = topic_parts[:-len_field]
     field_parts = topic_parts[-len_field:]
 
     parsed_dict = dict(zip(structure_parts, other_parts))
-    parsed_dict["field"] = "_".join(field_parts)
+    parsed_dict[structure_parts[-1]] = "_".join(field_parts)
 
     return parsed_dict
 
