@@ -60,6 +60,8 @@ class MQTTBrokerConfig:
     keepalive: int
     hostname: str
     port: int
+    timeout: int
+    reconnect_attempts: int
 
 
 class MQTTNode:
