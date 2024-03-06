@@ -189,13 +189,18 @@ class MQTTNode:
         for topic in self.subscriptions:
             self.subscribe(topic)
 
-    def publish(self, topic, payload, qos=0, retain=False):
+    def reconnect(self):
+        reconnects = 0
         while (self.client.is_connected() is False) and (
             reconnects < self.reconnect_attempts
         ):
             self.client.reconnect()
             time.sleep(self.timeout)
             reconnects += 1
+
+    def publish(self, topic, payload, qos=0, retain=False):
+        if self.client.is_connected() is False:
+            self.reconnect()
         return self.client.publish(topic, payload, qos, retain)
 
     def loop_forever(self):
