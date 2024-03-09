@@ -38,8 +38,6 @@ def convert_bytes_to_human_readable(num: float) -> str:
     return f"{num:.2f} {unit}"
 
 
-<<<<<<< HEAD
-=======
 def extend_or_append(list_topics, topic):
     for item in topic:
         if isinstance(item, tuple):
@@ -48,7 +46,6 @@ def extend_or_append(list_topics, topic):
             list_topics.append(item)
 
 
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
 class NodeError(Exception):
     def __init__(self, message):
         self.message = message
@@ -98,27 +95,16 @@ class MQTTNode:
         self,
         broker_config: MQTTBrokerConfig,
         name=None,
-<<<<<<< HEAD
-        node_id=None,
-        node_type=None,
-        logger=None,
-        client_id=None,
-=======
         node_id="",
         node_type=None,
         logger=None,
         subscriptions: list = None,
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
     ):
         self.name = name
         self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
-<<<<<<< HEAD
-        self.client_id = client_id or self.node_id
-=======
         self.client_id = node_id
         self.subscriptions = subscriptions or []
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -137,11 +123,7 @@ class MQTTNode:
         # Initialize client
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
-<<<<<<< HEAD
-            client_id=self.client_id,
-=======
             client_id=self.node_id,
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
@@ -162,39 +144,16 @@ class MQTTNode:
         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         return self
 
-<<<<<<< HEAD
-    def subscribe(self, topic: Union[str, tuple, list[tuple]] = "#", qos: int = 0):
-=======
     def subscribe(self, topic: str, qos: int = 0):
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
         """
         Subscribe to a topic
         :topic: str
         :qos, options and properties: Not used.
 
-<<<<<<< HEAD
-        e.g. subscribe("my/topic", 2)
-        subscribe("my/topic", options=SubscribeOptions(qos=2))
-        subscribe(("my/topic", 1))
-        subscribe([("my/topic", 0), ("another/topic", 2)])
-=======
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
         """
 
         if isinstance(topic, str):
             topic = (topic, mqtt.SubscribeOptions(qos))
-<<<<<<< HEAD
-        elif isinstance(topic, tuple):
-            topic = tuple((topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic)
-        result = self.client.subscribe(topic)
-        if result[0] == 4:
-            logger.error(
-                f"Failed to subscribe to topic(s): {[topic_ for topic_ in topic]}",
-                extra={"reason_code": mqtt.error_string(result[0])},
-            )
-        else:
-            logger.info(f"Subscribed to topic(s): {[topic_ for topic_ in topic]}")
-=======
         else:
             assert isinstance(topic, tuple)
 
@@ -209,7 +168,6 @@ class MQTTNode:
 
         # Add the topic to the list of subscriptions
         self.add_subscription_topic(topic, qos)
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
 
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """
@@ -218,10 +176,6 @@ class MQTTNode:
         :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
             to be included. Optional - if not set, no properties are sent.
         """
-<<<<<<< HEAD
-        return self.client.unsubscribe(topic)
-
-=======
         # TODO remove from self.subscriptions
         return self.client.unsubscribe(topic)
 
@@ -248,7 +202,6 @@ class MQTTNode:
             logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
             time.sleep(self.timeout)
 
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
     def publish(self, topic, payload, qos=0, retain=False):
         if self.client.is_connected() is False:
             self.reconnect()
@@ -297,19 +250,11 @@ class MQTTNode:
         ).inc()
         logger.debug("Published message: {}".format(mid))
 
-<<<<<<< HEAD
-    def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
-        logger.info("Subscribed to topic")
-
-    def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
-        logger.info("Unsubscribed from topic")
-=======
     # def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
     #     logger.info("Subscribed to topic")
 
     # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
     #     logger.info("Unsubscribed from topic")
->>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
 
     def on_log(self, client, userdata, level, buf):
         logger.debug("Log: {}".format(buf))
