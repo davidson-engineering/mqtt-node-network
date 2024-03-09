@@ -31,6 +31,7 @@ PUBLISH_TOPIC = f"{PUBLISHER_NODE_ID}/metrics"
 QOS = 0
 
 
+
 def setup_logging(logger_config):
     from pathlib import Path
 
@@ -39,6 +40,7 @@ def setup_logging(logger_config):
 
 
 def publish_forever():
+<<<<<<< HEAD
     client = MQTTNode(broker_config=broker_config, node_id=PUBLISHER_NODE_ID).connect()
 
     while True:
@@ -51,19 +53,43 @@ def publish_forever():
         client.publish(topic=PUBLISH_TOPIC, payload=payload)
         time.sleep(GATHER_PERIOD)
 
+=======
+    client = (
+        MQTTNode(broker_config=broker_config, node_id="node_0").connect().loop_start()
+    )
+
+    while True:
+        data = random.random()
+        payload = json.dumps(data)
+        client.publish(topic="pzero/sensorbox_lower/temperature/IR/0", payload=payload)
+        time.sleep(1)
+>>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
+
 
 def subscribe_forever():
     buffer = []
+<<<<<<< HEAD
     client = MQTTClient(
         broker_config=broker_config, node_id=SUBSCRIBER_NODE_ID, buffer=buffer
     ).connect()
     client.subscribe(topics=SUBSCRIBE_TOPICS, qos=QOS)
     client.loop_forever()
+=======
+    client = (
+        MQTTMetricsGatherer(
+            broker_config=broker_config, node_id="client_0", buffer=buffer
+        )
+        .connect()
+        .loop_start()
+    )
+    client.subscribe(topic="pzero/#", qos=0)
+
+>>>>>>> 3d69d0147c1155d21a3282fab80ce3c5c5f6d274
 
 
 if __name__ == "__main__":
     setup_logging(logger_config)
-    threading.Thread(target=publish_forever).start()
-    threading.Thread(target=subscribe_forever).start()
+    publish_forever()
+    subscribe_forever()
 
 #
