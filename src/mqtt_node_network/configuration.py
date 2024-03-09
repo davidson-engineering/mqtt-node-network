@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from mqtt_node_network.node import MQTTBrokerConfig
 
 
-
 def load_config(filepath: Union[str, Path]) -> dict:
     if isinstance(filepath, str):
         filepath = Path(filepath)
@@ -44,7 +43,7 @@ def load_config(filepath: Union[str, Path]) -> dict:
         return file.read()
 
 
-config = load_config("config/application.toml")
+config = load_config("config/config.toml")
 
 load_dotenv(config["secrets_filepath"])
 
