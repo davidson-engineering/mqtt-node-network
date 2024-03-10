@@ -131,7 +131,9 @@ class MQTTNode:
             self.client.enable_logger(logger)
 
         # Set client callbacks
+        self.client.on_pre_connect = self.on_pre_connect
         self.client.on_connect = self.on_connect
+        self.client.on_connect_fail = self.on_connect_fail
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
@@ -140,8 +142,12 @@ class MQTTNode:
         # self.client.on_log = self.on_log
 
     def connect(self):
-        self.client.connect(self.hostname, self.port, self.keepalive)
-        self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+        self.client.loop_start()
+        if self.client.is_connected() is False:
+            self.client.connect(self.hostname, self.port, self.keepalive)
+            self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+        self.ensure_connection()
+
         return self
 
     def subscribe(self, topic: str, qos: int = 0):
@@ -189,7 +195,9 @@ class MQTTNode:
         for topic in self.subscriptions:
             self.subscribe(topic)
 
-    def reconnect(self):
+    def ensure_connection(self):
+        if self.client.is_connected() is True:
+            return
         reconnects = 1
         while self.client.is_connected() is False:
             try:
@@ -203,8 +211,7 @@ class MQTTNode:
             time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False):
-        if self.client.is_connected() is False:
-            self.reconnect()
+        self.ensure_connection()
         return self.client.publish(topic, payload, qos, retain)
 
     def loop_forever(self):
