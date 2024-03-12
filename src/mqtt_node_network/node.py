@@ -16,6 +16,8 @@ from typing import Union
 import time
 
 import paho.mqtt.client as mqtt
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.properties import Properties
 from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
@@ -44,6 +46,20 @@ def extend_or_append(list_topics, topic):
             extend_or_append(list_topics, item)
         else:
             list_topics.append(item)
+
+
+def parse_properties_dict(properties: dict) -> Properties:
+
+    publish_properties = Properties(PacketTypes.PUBLISH)
+
+    if isinstance(properties, dict):
+        for key, value in properties.items():
+            if not isinstance(value, str):
+                value = str(value)
+            publish_properties.UserProperty = (key, value)
+    else:
+        raise ValueError("User property must be a dictionary")
+    return publish_properties
 
 
 class NodeError(Exception):
@@ -213,15 +229,8 @@ class MQTTNode:
     def publish(self, topic, payload, qos=0, retain=False, properties=None):
         self.ensure_connection()
         if properties:
-            publish_properties = mqtt.Properties(mqtt.PacketTypes.PUBLISH)
-            if isinstance(properties, dict):
-                for property in properties.items():
-                    publish_properties.UserProperty(*property)
-            else:
-                raise ValueError("User property must be a dictionary")
-        return self.client.publish(
-            topic, payload, qos, retain, properties=publish_properties
-        )
+            properties = parse_properties_dict(properties)
+        return self.client.publish(topic, payload, qos, retain, properties=properties)
 
     def loop_forever(self):
         self.client.loop_forever()
