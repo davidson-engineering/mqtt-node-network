@@ -210,12 +210,12 @@ class MQTTNode:
             logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
             time.sleep(self.timeout)
 
-    def publish(self, topic, payload, qos=0, retain=False, user_property=None):
+    def publish(self, topic, payload, qos=0, retain=False, properties=None):
         self.ensure_connection()
-        if user_property:
+        if properties:
             publish_properties = mqtt.Properties(mqtt.PacketTypes.PUBLISH)
-            if isinstance(user_property, dict):
-                for property in user_property.items():
+            if isinstance(properties, dict):
+                for property in properties.items():
                     publish_properties.UserProperty(*property)
             else:
                 raise ValueError("User property must be a dictionary")
