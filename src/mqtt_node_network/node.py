@@ -197,7 +197,7 @@ class MQTTNode:
             logger.info(f"Subscribed to topic: {topic}")
 
         # Add the topic to the list of subscriptions
-        self.add_subscription_topic(topic, qos)
+        self.add_subscription_topic(topic)
 
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """
