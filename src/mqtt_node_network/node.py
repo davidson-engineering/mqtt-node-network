@@ -169,15 +169,15 @@ class MQTTNode:
     def subscribe(self, topic: Union[str, tuple, list], qos: int = 0):
         """
         Subscribe to a topic
-        :topic: str
-        :qos, options and properties: Not used.
+        :topic: str | tuple | list
+        :qos: quality of service, 0 | 1 | 2
 
         """
 
         if isinstance(topic, str):
             topic = (topic, mqtt.SubscribeOptions(qos))
-        elif isinstance(topic, (list, tuple)):
-            topic = tuple((topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic)
+        elif isinstance(topic, list):
+            topic = [(topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic]
 
         result = self.client.subscribe(topic)
         if result[0] == 4:
