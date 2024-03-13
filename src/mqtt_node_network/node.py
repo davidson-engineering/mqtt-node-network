@@ -62,6 +62,17 @@ def parse_properties_dict(properties: dict) -> Properties:
     return publish_properties
 
 
+def parse_topic(topic: Union[str, list, tuple], qos: int = 0) -> Union[list, tuple]:
+    if isinstance(topic, str):
+        return (topic, mqtt.SubscribeOptions(qos))
+    elif isinstance(topic, tuple):
+        return (topic[0], mqtt.SubscribeOptions(qos))
+    elif isinstance(topic, list):
+        return [(topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic]
+    else:
+        raise ValueError("Topic must be a string, tuple or list")
+
+
 class NodeError(Exception):
     def __init__(self, message):
         self.message = message
@@ -174,10 +185,7 @@ class MQTTNode:
 
         """
 
-        if isinstance(topic, str):
-            topic = (topic, mqtt.SubscribeOptions(qos))
-        elif isinstance(topic, list):
-            topic = [(topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic]
+        topic = parse_topic(topic, qos)
 
         result = self.client.subscribe(topic)
         if result[0] == 4:
@@ -201,15 +209,23 @@ class MQTTNode:
         # TODO remove from self.subscriptions
         return self.client.unsubscribe(topic)
 
-    def add_subscription_topic(self, topic: str, qos: int = 0):
-        if isinstance(topic, str):
-            topic = (topic, mqtt.SubscribeOptions(qos))
-        if topic not in self.subscriptions:
+    def add_subscription_topic(self, topic: Union[str, list, tuple]):
+
+        if isinstance(topic, list):
+            for t in topic:
+                (
+                    self.subscriptions.append(t[0])
+                    if t[0] not in self.subscriptions
+                    else None
+                )
+        elif isinstance(topic, tuple):
+            self.subscriptions.append(topic[0])
+        elif isinstance(topic, str):
             self.subscriptions.append(topic)
 
-    def restore_subscriptions(self):
+    def restore_subscriptions(self, qos: int = 0):
         for topic in self.subscriptions:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
     def ensure_connection(self):
         if self.client.is_connected() is True:
