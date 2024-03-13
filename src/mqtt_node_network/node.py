@@ -226,9 +226,11 @@ class MQTTNode:
             logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
             time.sleep(self.timeout)
 
-    def publish(self, topic, payload, qos=0, retain=False):
+    def publish(self, topic, payload, qos=0, retain=False, properties=None):
         self.ensure_connection()
-        return self.client.publish(topic, payload, qos, retain)
+        if properties:
+            properties = parse_properties_dict(properties)
+        return self.client.publish(topic, payload, qos, retain, properties=properties)
 
     def loop_forever(self):
         self.client.loop_forever()
