@@ -6,7 +6,7 @@ import time
 import logging
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.configuration import MQTTBrokerConfig, config
+from mqtt_node_network.configure import MQTTBrokerConfig, config
 
 TOPIC_STRUCTURE = config["mqtt"]["node_network"]["topic_structure"]
 

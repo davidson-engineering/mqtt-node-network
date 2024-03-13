@@ -98,12 +98,15 @@ if PROMETHEUS_ENABLE:
     start_prometheus_server(PROMETHEUS_PORT)
 
 broker_config = MQTTBrokerConfig(
-    hostname=config["mqtt"]["broker"]["hostname"],
-    port=config["mqtt"]["broker"]["port"],
-    keepalive=config["mqtt"]["broker"]["keepalive"],
     username=os.getenv("MQTT_BROKER_USERNAME"),
     password=os.getenv("MQTT_BROKER_PASSWORD"),
+    hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
+    port=config["mqtt"]["broker"].get("port", 1883),
+    keepalive=config["mqtt"]["broker"].get("keepalive", 60),
+    timeout=config["mqtt"]["broker"].get("timeout", 5),
+    reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
 )
+
 
 logger_config = load_config("config/logger.yaml")
 
