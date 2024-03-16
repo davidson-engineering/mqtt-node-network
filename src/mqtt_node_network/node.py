@@ -8,7 +8,6 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
-from dataclasses import dataclass
 import logging
 import itertools
 import socket
@@ -19,6 +18,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter
+from mqtt_node_network.configure import MQTTBrokerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -80,17 +80,6 @@ class NodeError(Exception):
         super().__init__(self.message)
 
 
-@dataclass
-class MQTTBrokerConfig:
-    username: str
-    password: str
-    keepalive: int
-    hostname: str
-    port: int
-    timeout: int
-    reconnect_attempts: int
-
-
 class MQTTNode:
 
     _ids = itertools.count()
@@ -128,8 +117,8 @@ class MQTTNode:
         subscriptions: list = None,
     ):
         self.name = name
-        self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
+        self.node_id = node_id or self._get_id()
         self.client_id = node_id
         self.subscriptions = subscriptions or []
 
@@ -164,13 +153,17 @@ class MQTTNode:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
+
         # self.client.on_subscribe = self.on_subscribe
         # self.client.on_unsubscribe = self.on_unsubscribe
         # self.client.on_log = self.on_log
 
+        self.is_connected = self.client.is_connected
+        self.loop_forever = self.client.loop_forever
+
     def connect(self):
         self.client.loop_start()
-        if self.client.is_connected() is False:
+        if self.is_connected() is False:
             self.client.connect(self.hostname, self.port, self.keepalive)
             self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         self.ensure_connection()
@@ -228,10 +221,10 @@ class MQTTNode:
             self.subscribe(topic, qos=qos)
 
     def ensure_connection(self):
-        if self.client.is_connected() is True:
+        if self.is_connected() is True:
             return
         reconnects = 1
-        while self.client.is_connected() is False:
+        while self.is_connected() is False:
             try:
                 self.client.reconnect()
             except ConnectionRefusedError:
@@ -239,7 +232,7 @@ class MQTTNode:
                     f"Failed to reconnect to broker at {self.hostname}:{self.port}"
                 )
             reconnects += 1
-            logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
+            logger.info(f"Retry attempt #{reconnects} in {self.timeout}s")
             time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False, properties=None):
@@ -247,9 +240,6 @@ class MQTTNode:
         if properties:
             properties = parse_properties_dict(properties)
         return self.client.publish(topic, payload, qos, retain, properties=properties)
-
-    def loop_forever(self):
-        self.client.loop_forever()
 
     def loop_start(self):
         self.client.loop_start()

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 import os
@@ -6,9 +7,10 @@ from logging.config import dictConfig
 
 from dotenv import load_dotenv
 
-from mqtt_node_network.node import MQTTBrokerConfig
-
-CONFIG_FILEPATH = "config/config.toml"
+FILEPATH_CONFIG_DEFAULT = "config/config.toml"
+PORT_PROMETHEUS_DEFAULT = 8000
+FILEPATH_SECRETS_DEFAULT = ".env"
+FILEPATH_LOGGING_CONFIG_DEFAULT = "config/logger.yaml"
 
 
 def load_config(filepath: Union[str, Path]) -> dict:
@@ -46,8 +48,10 @@ def load_config(filepath: Union[str, Path]) -> dict:
         return file.read()
 
 
-def start_prometheus_server(port=8000):
+def start_prometheus_server(port=None) -> None:
     from prometheus_client import start_http_server
+
+    port = port or PORT_PROMETHEUS_DEFAULT
 
     start_http_server(port)
 
@@ -78,44 +82,58 @@ def merge_dicts_recursive(dict1, dict2):
     return merged_dict
 
 
-def build_config(filepath: str = CONFIG_FILEPATH) -> dict:
+def build_config(config: Union[str, dict] = FILEPATH_CONFIG_DEFAULT) -> dict:
     # Define default configuration
     from mqtt_node_network.config_default import config_defaults
 
-    config_local = load_config(filepath)
+    if isinstance(config, dict):
+        config_local = config
+    else:
+        config_local = load_config(config)
     # Merge the two configurations, with the local configuration taking precedence
     return merge_dicts_recursive(config_defaults, config_local)
 
 
-config = build_config()
-
-load_dotenv(config["secrets_filepath"])
-
-PROMETHEUS_ENABLE = config["mqtt"]["node_network"]["enable_prometheus_server"]
-PROMETHEUS_PORT = config["mqtt"]["node_network"]["prometheus_port"]
-
-if PROMETHEUS_ENABLE:
-    start_prometheus_server(PROMETHEUS_PORT)
-
-broker_config = MQTTBrokerConfig(
-    username=os.getenv("MQTT_BROKER_USERNAME"),
-    password=os.getenv("MQTT_BROKER_PASSWORD"),
-    hostname=config["mqtt"]["broker"].get("hostname", "localhost"),
-    port=config["mqtt"]["broker"].get("port", 1883),
-    keepalive=config["mqtt"]["broker"].get("keepalive", 60),
-    timeout=config["mqtt"]["broker"].get("timeout", 5),
-    reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
-)
-
-
-logger_config = load_config("config/logger.yaml")
-
-
-def setup_logging(logger_config):
-    from pathlib import Path
-
+def setup_logging(logger_config: Union[str, dict] = FILEPATH_LOGGING_CONFIG_DEFAULT):
+    # if logger_config is a dictionary, use it as is
+    if isinstance(logger_config, dict):
+        return dictConfig(logger_config)
+    # else if logger_config is a string, load it as a file
+    logger_config = load_config(logger_config)
+    # Create logs directory if it doesn't exist
     Path.mkdir(Path("logs"), exist_ok=True)
     return dictConfig(logger_config)
 
 
-setup_logging(logger_config)
+@dataclass
+class MQTTBrokerConfig:
+    username: str
+    password: str
+    keepalive: int
+    hostname: str
+    port: int
+    timeout: int
+    reconnect_attempts: int
+
+
+def load_secrets(
+    filepath: Union[str, Path] = FILEPATH_SECRETS_DEFAULT, secrets: list[str] = None
+) -> dict:
+    if isinstance(filepath, str):
+        filepath = Path(filepath)
+
+    if not Path(filepath).exists():
+        raise FileNotFoundError(f"File not found: {filepath}")
+
+    load_dotenv(filepath)
+
+    if secrets is None:
+        secrets = []
+
+    for secret in secrets:
+        if secret not in os.environ:
+            raise KeyError(f"Secret not found: {secret}")
+
+    secrets = {secret: os.getenv(secret) for secret in secrets}
+
+    return secrets
