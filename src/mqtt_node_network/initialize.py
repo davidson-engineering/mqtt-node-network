@@ -1,5 +1,5 @@
 from typing import Union
-from src.mqtt_node_network.configure import (
+from mqtt_node_network.configure import (
     start_prometheus_server,
     setup_logging,
     build_config,
@@ -12,8 +12,8 @@ def initialize(
     secrets: Union[str, dict] = None,
     logging_config: Union[str, dict] = None,
 ) -> tuple[dict, logging.Logger]:
-    from src.mqtt_node_network.configure import MQTTBrokerConfig
-    from src.mqtt_node_network.configure import load_secrets
+    from mqtt_node_network.configure import MQTTBrokerConfig
+    from mqtt_node_network.configure import load_secrets
 
     config = build_config(config)
     secrets = secrets or config.get("secrets_filepath")
