@@ -82,9 +82,11 @@ def merge_dicts_recursive(dict1, dict2):
     return merged_dict
 
 
-def build_config(config: Union[str, dict] = FILEPATH_CONFIG_DEFAULT) -> dict:
+def build_config(config: Union[str, dict] = None) -> dict:
     # Define default configuration
     from mqtt_node_network.config_default import config_defaults
+
+    config = config or FILEPATH_CONFIG_DEFAULT
 
     if isinstance(config, dict):
         config_local = config
@@ -94,7 +96,8 @@ def build_config(config: Union[str, dict] = FILEPATH_CONFIG_DEFAULT) -> dict:
     return merge_dicts_recursive(config_defaults, config_local)
 
 
-def setup_logging(logger_config: Union[str, dict] = FILEPATH_LOGGING_CONFIG_DEFAULT):
+def setup_logging(logger_config: Union[str, dict] = None):
+    logger_config = logger_config or FILEPATH_LOGGING_CONFIG_DEFAULT
     # if logger_config is a dictionary, use it as is
     if isinstance(logger_config, dict):
         return dictConfig(logger_config)
@@ -116,9 +119,8 @@ class MQTTBrokerConfig:
     reconnect_attempts: int
 
 
-def load_secrets(
-    filepath: Union[str, Path] = FILEPATH_SECRETS_DEFAULT, secrets: list[str] = None
-) -> dict:
+def load_secrets(filepath: Union[str, Path] = None, secrets: list[str] = None) -> dict:
+    filepath = filepath or FILEPATH_SECRETS_DEFAULT
     if isinstance(filepath, str):
         filepath = Path(filepath)
 
