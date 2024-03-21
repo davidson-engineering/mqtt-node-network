@@ -3,6 +3,8 @@ from mqtt_node_network.configure import (
     start_prometheus_server,
     setup_logging,
     build_config,
+    load_secrets,
+    MQTTBrokerConfig,
 )
 import logging
 
@@ -12,8 +14,6 @@ def initialize(
     secrets: Union[str, dict] = None,
     logger: Union[str, dict] = None,
 ) -> tuple[dict, logging.Logger]:
-    from mqtt_node_network.configure import MQTTBrokerConfig
-    from mqtt_node_network.configure import load_secrets
 
     config = build_config(config)
     secrets = secrets or config.get("secrets_filepath")
