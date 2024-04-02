@@ -8,3 +8,8 @@ port = 1_883
 topic_structure = "machine/module/measurement/field*"
 enable_prometheus_server = false
 prometheus_port = 8_000
+
+[mqtt.client]
+node_id = "metrics_manager_pzero"
+subscribe_topics = ["prototype-zero/#"]
+subscribe_qos = 0
