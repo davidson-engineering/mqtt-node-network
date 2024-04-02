@@ -99,12 +99,34 @@ class MQTTMetricsGatherer(MQTTNode):
     def on_message(self, client, userdata, message):
         super().on_message(client, userdata, message)
         data = message.payload.decode()
-        if data == "nan" or data is None:
+        if message.payload is None:
+            logger.debug(
+                f"Null message ignored. Received None on topic '{message.topic}'"
+            )
+            return
+
+        elif isinstance(message.payload, bytes):
+            data = message.payload.decode()
+
+        if data == "nan":
             logger.debug(
                 f"Null message ignored. Received 'nan' on topic '{message.topic}'"
             )
             return
-        data = json.loads(data)
+
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                logger.debug("Message is not JSON. Attempting to parse as a string")
+                pass
+
+        if not isinstance(data, (str, int, float)):
+            logger.error(
+                f"Message is not a valid type. Received '{type(data)}' on topic '{message.topic}'"
+            )
+            return
+
         metric = parse_payload_to_metric(
             value=data, topic=message.topic, structure=TOPIC_STRUCTURE
         )
