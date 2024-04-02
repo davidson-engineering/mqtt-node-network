@@ -8,7 +8,6 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
-from dataclasses import dataclass
 import logging
 import itertools
 import socket
@@ -19,6 +18,7 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter
+from mqtt_node_network.configure import MQTTBrokerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -62,22 +62,22 @@ def parse_properties_dict(properties: dict) -> Properties:
     return publish_properties
 
 
+def parse_topic(topic: Union[str, list, tuple], qos: int = 0) -> Union[list, tuple]:
+    if isinstance(topic, str):
+        return (topic, mqtt.SubscribeOptions(qos))
+    elif isinstance(topic, tuple):
+        return (topic[0], mqtt.SubscribeOptions(qos))
+    elif isinstance(topic, list):
+        return [(topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic]
+    else:
+        raise ValueError("Topic must be a string, tuple or list")
+
+
 class NodeError(Exception):
     def __init__(self, message):
         self.message = message
         logger.error(self.message)
         super().__init__(self.message)
-
-
-@dataclass
-class MQTTBrokerConfig:
-    username: str
-    password: str
-    keepalive: int
-    hostname: str
-    port: int
-    timeout: int
-    reconnect_attempts: int
 
 
 class MQTTNode:
@@ -117,8 +117,8 @@ class MQTTNode:
         subscriptions: list = None,
     ):
         self.name = name
-        self.node_id = node_id or self._get_id()
         self.node_type = node_type or self.__class__.__name__
+        self.node_id = node_id or self._get_id()
         self.client_id = node_id
         self.subscriptions = subscriptions or []
 
@@ -153,31 +153,32 @@ class MQTTNode:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
+
         # self.client.on_subscribe = self.on_subscribe
         # self.client.on_unsubscribe = self.on_unsubscribe
         # self.client.on_log = self.on_log
 
+        self.is_connected = self.client.is_connected
+        self.loop_forever = self.client.loop_forever
+
     def connect(self):
         self.client.loop_start()
-        if self.client.is_connected() is False:
+        if self.is_connected() is False:
             self.client.connect(self.hostname, self.port, self.keepalive)
             self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         self.ensure_connection()
 
         return self
 
-    def subscribe(self, topic: str, qos: int = 0):
+    def subscribe(self, topic: Union[str, tuple, list], qos: int = 0):
         """
         Subscribe to a topic
-        :topic: str
-        :qos, options and properties: Not used.
+        :topic: str | tuple | list
+        :qos: quality of service, 0 | 1 | 2
 
         """
 
-        if isinstance(topic, str):
-            topic = (topic, mqtt.SubscribeOptions(qos))
-        else:
-            assert isinstance(topic, tuple)
+        topic = parse_topic(topic, qos)
 
         result = self.client.subscribe(topic)
         if result[0] == 4:
@@ -189,7 +190,7 @@ class MQTTNode:
             logger.info(f"Subscribed to topic: {topic}")
 
         # Add the topic to the list of subscriptions
-        self.add_subscription_topic(topic, qos)
+        self.add_subscription_topic(topic)
 
     def unsubscribe(self, topic: Union[str, list[str]], properties=None):
         """
@@ -201,21 +202,29 @@ class MQTTNode:
         # TODO remove from self.subscriptions
         return self.client.unsubscribe(topic)
 
-    def add_subscription_topic(self, topic: str, qos: int = 0):
-        if isinstance(topic, str):
-            topic = (topic, mqtt.SubscribeOptions(qos))
-        if topic not in self.subscriptions:
+    def add_subscription_topic(self, topic: Union[str, list, tuple]):
+
+        if isinstance(topic, list):
+            for t in topic:
+                (
+                    self.subscriptions.append(t[0])
+                    if t[0] not in self.subscriptions
+                    else None
+                )
+        elif isinstance(topic, tuple):
+            self.subscriptions.append(topic[0])
+        elif isinstance(topic, str):
             self.subscriptions.append(topic)
 
-    def restore_subscriptions(self):
+    def restore_subscriptions(self, qos: int = 0):
         for topic in self.subscriptions:
-            self.subscribe(topic)
+            self.subscribe(topic, qos=qos)
 
     def ensure_connection(self):
-        if self.client.is_connected() is True:
+        if self.is_connected() is True:
             return
         reconnects = 1
-        while self.client.is_connected() is False:
+        while self.is_connected() is False:
             try:
                 self.client.reconnect()
             except ConnectionRefusedError:
@@ -223,7 +232,7 @@ class MQTTNode:
                     f"Failed to reconnect to broker at {self.hostname}:{self.port}"
                 )
             reconnects += 1
-            logger.info(f"Retry attempt {reconnects} in {self.timeout}s")
+            logger.info(f"Retry attempt #{reconnects} in {self.timeout}s")
             time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False, properties=None):

@@ -6,9 +6,8 @@ import time
 import logging
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.configuration import MQTTBrokerConfig, config
+from mqtt_node_network.configure import MQTTBrokerConfig
 
-TOPIC_STRUCTURE = config["mqtt"]["node_network"]["topic_structure"]
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +71,11 @@ def parse_payload_to_metric(
     return Metric(measurement=measurement, fields=fields, time=metric_time, tags=tags)
 
 
-class MQTTMetricsGatherer(MQTTNode):
+class MQTTClient(MQTTNode):
     def __init__(
         self,
         broker_config: MQTTBrokerConfig,
+        topic_structure: str,
         buffer: Union[list, deque] = None,
         name=None,
         node_id="",
@@ -95,6 +95,7 @@ class MQTTMetricsGatherer(MQTTNode):
             buffer = []
         self.buffer = buffer
         self.datatype = datatype
+        self.topic_structure = topic_structure
 
     def on_message(self, client, userdata, message):
         super().on_message(client, userdata, message)
@@ -128,7 +129,7 @@ class MQTTMetricsGatherer(MQTTNode):
             return
 
         metric = parse_payload_to_metric(
-            value=data, topic=message.topic, structure=TOPIC_STRUCTURE
+            value=data, topic=message.topic, structure=self.topic_structure
         )
         metric = self.datatype(**metric)
         self.buffer.append(metric)

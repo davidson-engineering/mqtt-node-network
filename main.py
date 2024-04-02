@@ -13,52 +13,51 @@ and prometheus metrics.
 """
 # ---------------------------------------------------------------------------
 
-
-import json
-import threading
 import time
 import random
-from logging.config import dictConfig
+from mqtt_node_network.initialize import initialize
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.metrics_gatherer import MQTTMetricsGatherer
-from mqtt_node_network.configuration import broker_config, logger_config
+from mqtt_node_network.client import MQTTClient
 
+PUBLISH_PERIOD = 1
+SUBSCRIBE_TOPICS = ["+/metrics/#"]
+PUBLISH_TOPIC = "metrics"
+QOS = 0
 
-def setup_logging(logger_config):
-    from pathlib import Path
+config, logger = initialize(
+    config="config/config.toml", secrets=".env", logging_config="config/logger.yaml"
+)
 
-    Path.mkdir(Path("logs"), exist_ok=True)
-    return dictConfig(logger_config)
+BROKER_CONFIG = config["mqtt"]["broker"]
 
 
 def publish_forever():
-    client = (
-        MQTTNode(broker_config=broker_config, node_id="node_0").connect().loop_start()
-    )
+    client = MQTTNode(broker_config=BROKER_CONFIG).connect()
 
     while True:
-        data = random.random()
-        payload = json.dumps(data)
-        client.publish(topic="pzero/sensorbox_lower/temperature/IR/0", payload=payload)
-        time.sleep(1)
+        payload = random.random()
+        client.publish(
+            topic=f"{client.node_id}/{PUBLISH_TOPIC}/temperature/IR/0", payload=payload
+        )
+        time.sleep(PUBLISH_PERIOD)
 
 
 def subscribe_forever():
     buffer = []
-    client = (
-        MQTTMetricsGatherer(
-            broker_config=broker_config, node_id="client_0", buffer=buffer
-        )
-        .connect()
-        .loop_start()
-    )
-    client.subscribe(topic="pzero/#", qos=0)
+    client = MQTTClient(
+        broker_config=BROKER_CONFIG,
+        buffer=buffer,
+        topic_structure=config["mqtt"]["node_network"]["topic_structure"],
+    ).connect()
+    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    while True:
+        time.sleep(1)
 
 
 if __name__ == "__main__":
-    setup_logging(logger_config)
-    publish_forever()
+    # publish_forever()
+    # or
     subscribe_forever()
 
 #
