@@ -99,7 +99,7 @@ class MQTTMetricsGatherer(MQTTNode):
     def on_message(self, client, userdata, message):
         super().on_message(client, userdata, message)
         data = message.payload.decode()
-        if data == "nan":
+        if data == "nan" or data is None:
             logger.debug(
                 f"Null message ignored. Received 'nan' on topic '{message.topic}'"
             )
