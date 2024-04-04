@@ -12,13 +12,14 @@ import logging
 def initialize(
     config: Union[str, dict] = None,
     secrets: Union[str, dict] = None,
-    # logger: Union[str, dict] = None,
+    logger: Union[str, dict] = None,
 ) -> tuple[dict, logging.Logger]:
 
     config = build_config(config)
     secrets = secrets or config.get("secrets_filepath")
     secrets = load_secrets(secrets, ["MQTT_BROKER_USERNAME", "MQTT_BROKER_PASSWORD"])
-    # logger = setup_logging(logger)
+    if logger is not None:
+        logger = setup_logging(logger)
 
     PROMETHEUS_ENABLE = config["mqtt"]["node_network"].get("enable_prometheus_server")
     PROMETHEUS_PORT = config["mqtt"]["node_network"].get("prometheus_port")
@@ -35,5 +36,7 @@ def initialize(
         timeout=config["mqtt"]["broker"].get("timeout", 5),
         reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
     )
-
-    return config
+    if logger is not None:
+        return config, logger
+    else:
+        return config
