@@ -68,7 +68,9 @@ def parse_payload_to_metric(
     fields = {parsed_topic.pop("field"): value}
     metric_time = time.time()
     tags = parsed_topic
-    return Metric(measurement=measurement, fields=fields, time=metric_time, tags=tags)
+    return asdict(
+        Metric(measurement=measurement, fields=fields, time=metric_time, tags=tags)
+    )
 
 
 class MQTTClient(MQTTNode):
