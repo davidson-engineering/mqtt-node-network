@@ -29,7 +29,9 @@ class Metric(Mapping):
         return len(asdict(self))
 
 
-def parse_topic(topic: str, structure: str) -> tuple[dict, str]:
+def parse_topic(
+    topic: str, structure: str, field_separator: str = "-"
+) -> tuple[dict, str]:
     topic_parts = topic.rstrip("/").split("/")
     structure_parts = structure.rstrip("/").split("/")
     len_diff = len(topic_parts) - len(structure_parts)
@@ -55,7 +57,7 @@ def parse_topic(topic: str, structure: str) -> tuple[dict, str]:
     field_parts = topic_parts[-len_field:]
 
     parsed_dict = dict(zip(structure_parts, other_parts))
-    parsed_dict[structure_parts[-1]] = "_".join(field_parts)
+    parsed_dict[structure_parts[-1]] = field_separator.join(field_parts)
 
     return parsed_dict
 
@@ -63,7 +65,14 @@ def parse_topic(topic: str, structure: str) -> tuple[dict, str]:
 def parse_payload_to_metric(
     value: Union[int, float, str], topic: str, structure: str
 ) -> Metric:
-    parsed_topic = parse_topic(topic, structure)
+    try:
+        parsed_topic = parse_topic(topic, structure)
+    except ValueError as e:
+        logger.error(
+            f"Failed to parse topic: {e}",
+            extra={"topic": topic, "structure": structure},
+        )
+        return None
     measurement = parsed_topic.pop("measurement")
     fields = {parsed_topic.pop("field"): value}
     metric_time = time.time()
@@ -133,5 +142,6 @@ class MQTTClient(MQTTNode):
         metric = parse_payload_to_metric(
             value=data, topic=message.topic, structure=self.topic_structure
         )
-        metric = self.datatype(**metric)
-        self.buffer.append(metric)
+        if metric:
+            metric = self.datatype(**metric)
+            self.buffer.append(metric)
