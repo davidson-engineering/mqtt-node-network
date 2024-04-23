@@ -13,7 +13,7 @@ def test_topic_parser():
         "machine": "pzero",
         "module": "sensorbox_lower",
         "measurement": "temperature",
-        "field": "sensorA_0",
+        "field": "sensorA-0",
     }
 
     structure = "machine/module/measurement/field"
@@ -27,7 +27,7 @@ def test_topic_parser():
     assert parsed_dict == {
         "machine": "pzero",
         "module": "sensorbox_lower",
-        "field": "temperature_sensorA_0",
+        "field": "temperature-sensorA-0",
     }
 
     structure = "machine/module/measurement*"
@@ -37,13 +37,13 @@ def test_topic_parser():
             "machine": "pzero",
             "module": "sensorbox_lower",
             "measurement": "temperature",
-            "field": "sensorA_0",
+            "field": "sensorA-0",
         }
     )
     assert parse_topic(topic, structure) == {
         "machine": "pzero",
         "module": "sensorbox_lower",
-        "measurement": "temperature_sensorA_0",
+        "measurement": "temperature-sensorA-0",
     }
 
     topic = "pzero/sensorbox_lower/temperature/sensorA"
@@ -86,9 +86,9 @@ def test_parse_data_to_metric():
     value = 25.5
 
     metric = parse_payload_to_metric(value, topic, structure)
-    assert asdict(metric) == {
+    assert metric == {
         "measurement": "temperature",
-        "fields": {"sensorA_0": 25.5},
+        "fields": {"sensorA-0": 25.5},
         "time": metric["time"],
         "tags": {"machine": "bedroom", "module": "bedside_table"},
     }
