@@ -12,7 +12,7 @@ PUBLISH_TOPIC = f"{PUBLISHER_NODE_ID}/metrics"
 QOS = 0
 
 BROKER_CONFIG = MQTTBrokerConfig(
-    hostname"localhost,
+    hostname="localhost,
     port=1883,
     keepalive=60,
     username="user",
