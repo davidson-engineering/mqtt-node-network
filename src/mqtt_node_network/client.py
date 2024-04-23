@@ -1,7 +1,8 @@
 from collections import deque
 from dataclasses import asdict, dataclass, field
 import json
-from typing import Mapping, Union
+from typing import Union
+from collections.abc import MutableMapping
 import time
 import logging
 
@@ -13,20 +14,48 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class Metric(Mapping):
+class Metric(MutableMapping):
     measurement: str
     fields: dict
     time: float | int
     tags: dict = field(default_factory=dict)
 
-    def __iter__(self):
-        return iter(asdict(self).keys())
-
     def __getitem__(self, key):
         return asdict(self)[key]
 
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    def __delitem__(self, key):
+        if hasattr(self, key):
+            setattr(
+                self, key, None
+            )  # or handle differently if setting to None is inappropriate
+        else:
+            raise KeyError(f"{key} is not a valid attribute of Metric")
+
+    def __iter__(self):
+        return iter(asdict(self))
+
     def __len__(self):
         return len(asdict(self))
+
+
+# @dataclass
+# class Metric(MutableMapping):
+#     measurement: str
+#     fields: dict
+#     time: float | int
+#     tags: dict = field(default_factory=dict)
+
+#     def __iter__(self):
+#         return iter(asdict(self).keys())
+
+#     def __getitem__(self, key):
+#         return asdict(self)[key]
+
+#     def __len__(self):
+#         return len(asdict(self))
 
 
 def parse_topic(
