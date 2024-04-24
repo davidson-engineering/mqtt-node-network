@@ -115,24 +115,24 @@ def parse_payload_to_metric(
 class MQTTClient(MQTTNode):
 
     client_bytes_received_count = Counter(
-        "node_bytes_received_total",
+        "client_bytes_received_total",
         "Total number of bytes received by a client node",
         labelnames=("machine", "module", "measurement", "field"),
     )
     client_bytes_sent_count = Counter(
-        "node_bytes_sent_total",
+        "client_bytes_sent_total",
         "Total number of bytes sent by a client node",
         labelnames=("machine", "module", "measurement", "field"),
     )
 
     client_messages_received_count = Counter(
-        "node_messages_received_total",
+        "client_messages_received_total",
         "Total number of messages received by a client node",
         labelnames=("machine", "module", "measurement", "field"),
     )
 
     client_messages_sent_count = Counter(
-        "node_messages_sent_total",
+        "client_messages_sent_total",
         "Total number of messages sent by a client node",
         labelnames=("machine", "module", "measurement", "field"),
     )
