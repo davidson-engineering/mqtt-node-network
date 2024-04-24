@@ -5,6 +5,7 @@ from typing import Union
 from collections.abc import MutableMapping
 import time
 import logging
+from prometheus_client import Counter
 
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.configure import MQTTBrokerConfig
@@ -112,6 +113,30 @@ def parse_payload_to_metric(
 
 
 class MQTTClient(MQTTNode):
+
+    client_bytes_received_count = Counter(
+        "node_bytes_received_total",
+        "Total number of bytes received by a client node",
+        labelnames=("machine", "module", "measurement", "field"),
+    )
+    client_bytes_sent_count = Counter(
+        "node_bytes_sent_total",
+        "Total number of bytes sent by a client node",
+        labelnames=("machine", "module", "measurement", "field"),
+    )
+
+    client_messages_received_count = Counter(
+        "node_messages_received_total",
+        "Total number of messages received by a client node",
+        labelnames=("machine", "module", "measurement", "field"),
+    )
+
+    client_messages_sent_count = Counter(
+        "node_messages_sent_total",
+        "Total number of messages sent by a client node",
+        labelnames=("machine", "module", "measurement", "field"),
+    )
+
     def __init__(
         self,
         broker_config: MQTTBrokerConfig,
@@ -139,6 +164,7 @@ class MQTTClient(MQTTNode):
 
     def on_message(self, client, userdata, message):
         super().on_message(client, userdata, message)
+
         data = message.payload.decode()
         if message.payload is None:
             logger.debug(
@@ -172,5 +198,18 @@ class MQTTClient(MQTTNode):
             value=data, topic=message.topic, structure=self.topic_structure
         )
         if metric:
+            self.client_messages_received_count.labels(
+                machine=metric["machine"],
+                module=metric["module"],
+                measurement=metric["measurement"],
+                field=metric["field"],
+            ).inc()
+            self.client_bytes_received_count.labels(
+                machine=metric["machine"],
+                module=metric["module"],
+                measurement=metric["measurement"],
+                field=metric["field"],
+            ).inc(len(message.payload))
+
             metric = self.datatype(**metric)
             self.buffer.append(metric)
