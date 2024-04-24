@@ -199,14 +199,14 @@ class MQTTClient(MQTTNode):
         )
         if metric:
             self.client_messages_received_count.labels(
-                machine=metric["machine"],
-                module=metric["module"],
+                machine=metric["tags"]["machine"],
+                module=metric["tags"]["module"],
                 measurement=metric["measurement"],
                 field=metric["field"],
             ).inc()
             self.client_bytes_received_count.labels(
-                machine=metric["machine"],
-                module=metric["module"],
+                machine=metric["tags"]["machine"],
+                module=metric["tags"]["module"],
                 measurement=metric["measurement"],
                 field=metric["field"],
             ).inc(len(message.payload))
