@@ -198,18 +198,19 @@ class MQTTClient(MQTTNode):
             value=data, topic=message.topic, structure=self.topic_structure
         )
         if metric:
-            self.client_messages_received_count.labels(
-                machine=metric["tags"]["machine"],
-                module=metric["tags"]["module"],
-                measurement=metric["measurement"],
-                field=metric["field"],
-            ).inc()
-            self.client_bytes_received_count.labels(
-                machine=metric["tags"]["machine"],
-                module=metric["tags"]["module"],
-                measurement=metric["measurement"],
-                field=metric["field"],
-            ).inc(len(message.payload))
+            for metric_field in metric["fields"].keys():
+                self.client_messages_received_count.labels(
+                    machine=metric["tags"]["machine"],
+                    module=metric["tags"]["module"],
+                    measurement=metric["measurement"],
+                    field=metric_field,
+                ).inc()
+                self.client_bytes_received_count.labels(
+                    machine=metric["tags"]["machine"],
+                    module=metric["tags"]["module"],
+                    measurement=metric["measurement"],
+                    field=metric_field,
+                ).inc(len(message.payload))
 
             metric = self.datatype(**metric)
             self.buffer.append(metric)
