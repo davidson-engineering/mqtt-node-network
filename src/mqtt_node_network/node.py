@@ -137,9 +137,10 @@ class MQTTNode:
         }
 
         # Initialize client
+        client_id = self.name or self.node_id
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
-            client_id=self.node_id,
+            client_id=client_id,
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
