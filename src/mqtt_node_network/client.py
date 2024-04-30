@@ -42,23 +42,6 @@ class Metric(MutableMapping):
         return len(asdict(self))
 
 
-# @dataclass
-# class Metric(MutableMapping):
-#     measurement: str
-#     fields: dict
-#     time: float | int
-#     tags: dict = field(default_factory=dict)
-
-#     def __iter__(self):
-#         return iter(asdict(self).keys())
-
-#     def __getitem__(self, key):
-#         return asdict(self)[key]
-
-#     def __len__(self):
-#         return len(asdict(self))
-
-
 def parse_topic(
     topic: str, structure: str, field_separator: str = "-"
 ) -> tuple[dict, str]:
@@ -146,7 +129,7 @@ class MQTTClient(MQTTNode):
         node_id="",
         node_type=None,
         logger=None,
-        datatype: type = Metric,
+        datatype: type = dict,
     ):
         super().__init__(
             broker_config,
@@ -212,5 +195,6 @@ class MQTTClient(MQTTNode):
                     field=metric_field,
                 ).inc(len(message.payload))
 
-            metric = self.datatype(**metric)
+            if not isinstance(metric, self.datatype):
+                metric = self.datatype(**metric)
             self.buffer.append(metric)
