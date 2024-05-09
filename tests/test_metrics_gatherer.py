@@ -92,3 +92,34 @@ def test_parse_data_to_metric():
         "time": metric["time"],
         "tags": {"machine": "bedroom", "module": "bedside_table"},
     }
+
+
+def test_extended_topic_structure():
+
+    topic = "pzero/normal/sensor/sensorbox_lower/temperature/sensorA/0"
+    structure = "machine/level/datatype/module/measurement/field*"
+
+    parsed_dict = parse_topic(topic, structure)
+    assert parsed_dict == {
+        "machine": "pzero",
+        "level": "normal",
+        "datatype": "sensor",
+        "module": "sensorbox_lower",
+        "measurement": "temperature",
+        "field": "sensorA-0",
+    }
+
+    from mqtt_node_network.client import parse_payload_to_metric
+
+    metric = parse_payload_to_metric(25.5, topic, structure)
+    assert metric == {
+        "measurement": "temperature",
+        "fields": {"sensorA-0": 25.5},
+        "time": metric["time"],
+        "tags": {
+            "machine": "pzero",
+            "level": "normal",
+            "datatype": "sensor",
+            "module": "sensorbox_lower",
+        },
+    }
