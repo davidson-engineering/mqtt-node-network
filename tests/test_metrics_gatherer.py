@@ -123,3 +123,11 @@ def test_extended_topic_structure():
             "module": "sensorbox_lower",
         },
     }
+
+
+def test_incorrect_topic_length():
+    topic = "pzero/normal/sensor/test_sensor/sensorA"
+    structure = "machine/level/datatype/module/measurement/field*"
+
+    with pytest.raises(ValueError):
+        parse_topic(topic, structure)

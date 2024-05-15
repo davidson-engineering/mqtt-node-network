@@ -182,7 +182,7 @@ class MQTTNode:
         topic = parse_topic(topic, qos)
 
         result = self.client.subscribe(topic)
-        if result[0] == 4:
+        if result[0] != 0:
             logger.error(
                 f"Failed to subscribe to topic: {topic}",
                 extra={"reason_code": mqtt.error_string(result[0])},
