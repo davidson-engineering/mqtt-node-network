@@ -46,6 +46,7 @@ def publish_forever():
 def subscribe_forever():
     from mqtt_node_network.client import MQTTClient
 
+    # Create a buffer to store messages received from subscribed topics
     buffer = []
     client = MQTTClient(
         broker_config=BROKER_CONFIG, node_id=SUBSCRIBER_NODE_ID, buffer=buffer
