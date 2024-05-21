@@ -82,8 +82,6 @@ class NodeError(Exception):
 
 class MQTTNode:
 
-    _ids = itertools.count()
-
     node_bytes_received_count = Counter(
         "node_bytes_received_total",
         "Total number of bytes received by node",
@@ -201,7 +199,12 @@ class MQTTNode:
         :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
             to be included. Optional - if not set, no properties are sent.
         """
-        # TODO remove from self.subscriptions
+        # remove from self.subscriptions
+        if isinstance(topic, list):
+            for t in topic:
+                self.subscriptions.remove(t)
+        elif isinstance(topic, str):
+            self.subscriptions.remove(topic)
         return self.client.unsubscribe(topic)
 
     def add_subscription_topic(self, topic: Union[str, list, tuple]):
@@ -266,7 +269,7 @@ class MQTTNode:
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        logger.info(f"Disconnected with result code {reason_code}")
+        logger.info(f"Disconnected with result code: {reason_code}")
 
     def on_message(self, client, userdata, message):
         self.node_messages_received_count.labels(
@@ -297,7 +300,7 @@ class MQTTNode:
 
     def _get_id(self):
         # Return a unique id for each node
-        return f"{self.node_type}_{next(self._ids)}"
+        return f"{self.node_type}_{time.time_ns()}"
 
     def __del__(self):
         self.client.disconnect()
