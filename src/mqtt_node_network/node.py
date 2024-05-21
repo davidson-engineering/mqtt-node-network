@@ -9,7 +9,6 @@
 # ---------------------------------------------------------------------------
 from __future__ import annotations
 import logging
-import itertools
 import socket
 from typing import Union
 import time
@@ -209,17 +208,22 @@ class MQTTNode:
 
     def add_subscription_topic(self, topic: Union[str, list, tuple]):
 
+        def append_topic(topic):
+            assert isinstance(topic, str)
+            if topic not in self.subscriptions:
+                self.subscriptions.append(topic)
+
         if isinstance(topic, list):
             for t in topic:
-                (
-                    self.subscriptions.append(t[0])
-                    if t[0] not in self.subscriptions
-                    else None
-                )
+                if isinstance(t, tuple):
+                    append_topic(t[0])
+                else:
+                    append_topic(t)
+
         elif isinstance(topic, tuple):
-            self.subscriptions.append(topic[0])
+            append_topic(topic[0])
         elif isinstance(topic, str):
-            self.subscriptions.append(topic)
+            append_topic(topic)
 
     def restore_subscriptions(self, qos: int = 0):
         for topic in self.subscriptions:
