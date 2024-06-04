@@ -9,7 +9,6 @@
 # ---------------------------------------------------------------------------
 from __future__ import annotations
 import logging
-import itertools
 import socket
 from typing import Union
 import time
@@ -82,8 +81,6 @@ class NodeError(Exception):
 
 class MQTTNode:
 
-    _ids = itertools.count()
-
     node_bytes_received_count = Counter(
         "node_bytes_received_total",
         "Total number of bytes received by node",
@@ -137,9 +134,10 @@ class MQTTNode:
         }
 
         # Initialize client
+        client_id = self.name or self.node_id
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
-            client_id=self.node_id,
+            client_id=client_id,
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
@@ -181,10 +179,11 @@ class MQTTNode:
         topic = parse_topic(topic, qos)
 
         result = self.client.subscribe(topic)
-        if result[0] == 4:
+        if result[0] != 0:
+            error_string = mqtt.error_string(result[0])
             logger.error(
-                f"Failed to subscribe to topic: {topic}",
-                extra={"reason_code": mqtt.error_string(result[0])},
+                f"{error_string}, failed to subscribe to topic: {topic}",
+                extra={"error_code": error_string},
             )
         else:
             logger.info(f"Subscribed to topic: {topic}")
@@ -199,22 +198,32 @@ class MQTTNode:
         :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
             to be included. Optional - if not set, no properties are sent.
         """
-        # TODO remove from self.subscriptions
+        # remove from self.subscriptions
+        if isinstance(topic, list):
+            for t in topic:
+                self.subscriptions.remove(t)
+        elif isinstance(topic, str):
+            self.subscriptions.remove(topic)
         return self.client.unsubscribe(topic)
 
     def add_subscription_topic(self, topic: Union[str, list, tuple]):
 
+        def append_topic(topic):
+            assert isinstance(topic, str)
+            if topic not in self.subscriptions:
+                self.subscriptions.append(topic)
+
         if isinstance(topic, list):
             for t in topic:
-                (
-                    self.subscriptions.append(t[0])
-                    if t[0] not in self.subscriptions
-                    else None
-                )
+                if isinstance(t, tuple):
+                    append_topic(t[0])
+                else:
+                    append_topic(t)
+
         elif isinstance(topic, tuple):
-            self.subscriptions.append(topic[0])
+            append_topic(topic[0])
         elif isinstance(topic, str):
-            self.subscriptions.append(topic)
+            append_topic(topic)
 
     def restore_subscriptions(self, qos: int = 0):
         for topic in self.subscriptions:
@@ -241,6 +250,9 @@ class MQTTNode:
             properties = parse_properties_dict(properties)
         return self.client.publish(topic, payload, qos, retain, properties=properties)
 
+    def loop_forever(self):
+        self.client.loop_forever()
+
     def loop_start(self):
         self.client.loop_start()
         return self
@@ -261,7 +273,7 @@ class MQTTNode:
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        logger.info(f"Disconnected with result code {reason_code}")
+        logger.info(f"Disconnected with result code: {reason_code}")
 
     def on_message(self, client, userdata, message):
         self.node_messages_received_count.labels(
@@ -292,7 +304,7 @@ class MQTTNode:
 
     def _get_id(self):
         # Return a unique id for each node
-        return f"{self.node_type}_{next(self._ids)}"
+        return f"{self.node_type}_{time.time_ns()}"
 
     def __del__(self):
         self.client.disconnect()

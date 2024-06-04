@@ -105,7 +105,7 @@ def setup_logging(logger_config: Union[str, dict] = None):
     logger_config = load_config(logger_config)
     # Create logs directory if it doesn't exist
     Path.mkdir(Path("logs"), exist_ok=True)
-    return dictConfig(logger_config)
+    dictConfig(logger_config)
 
 
 @dataclass

@@ -18,7 +18,8 @@ def initialize(
     config = build_config(config)
     secrets = secrets or config.get("secrets_filepath")
     secrets = load_secrets(secrets, ["MQTT_BROKER_USERNAME", "MQTT_BROKER_PASSWORD"])
-    logger = setup_logging(logger)
+    if logger is not None:
+        setup_logging(logger)
 
     PROMETHEUS_ENABLE = config["mqtt"]["node_network"].get("enable_prometheus_server")
     PROMETHEUS_PORT = config["mqtt"]["node_network"].get("prometheus_port")
@@ -35,5 +36,4 @@ def initialize(
         timeout=config["mqtt"]["broker"].get("timeout", 5),
         reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
     )
-
-    return config, logger
+    return config

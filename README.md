@@ -12,7 +12,7 @@ PUBLISH_TOPIC = f"{PUBLISHER_NODE_ID}/metrics"
 QOS = 0
 
 BROKER_CONFIG = MQTTBrokerConfig(
-    hostname"localhost,
+    hostname="localhost,
     port=1883,
     keepalive=60,
     username="user",
@@ -29,18 +29,24 @@ def publish_forever():
     node = MQTTNode(broker_config=BROKER_CONFIG, node_id=PUBLISHER_NODE_ID).connect()
 
     while True:
+
+        # Sending a single value
+        data = 69
+        # OR to send a complex data structure, serialize to json first
         data = {
             "measurement": "test_measure",
             "fields": {"random_data": random.random()},
             "time": time.time(),
         }
         payload = json.dumps(data)
+        
         node.publish(topic=PUBLISH_TOPIC, payload=payload)
         time.sleep(GATHER_PERIOD)
 
 def subscribe_forever():
     from mqtt_node_network.client import MQTTClient
 
+    # Create a buffer to store messages received from subscribed topics
     buffer = []
     client = MQTTClient(
         broker_config=BROKER_CONFIG, node_id=SUBSCRIBER_NODE_ID, buffer=buffer
