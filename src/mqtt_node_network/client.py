@@ -100,24 +100,24 @@ class MQTTClient(MQTTNode):
     client_bytes_received_count = Counter(
         "client_bytes_received_total",
         "Total number of bytes received by a client node",
-        labelnames=("machine", "module", "measurement", "field"),
+        labelnames=("measurement", "field"),
     )
     client_bytes_sent_count = Counter(
         "client_bytes_sent_total",
         "Total number of bytes sent by a client node",
-        labelnames=("machine", "module", "measurement", "field"),
+        labelnames=("measurement", "field"),
     )
 
     client_messages_received_count = Counter(
         "client_messages_received_total",
         "Total number of messages received by a client node",
-        labelnames=("machine", "module", "measurement", "field"),
+        labelnames=("measurement", "field"),
     )
 
     client_messages_sent_count = Counter(
         "client_messages_sent_total",
         "Total number of messages sent by a client node",
-        labelnames=("machine", "module", "measurement", "field"),
+        labelnames=("measurement", "field"),
     )
 
     def __init__(
@@ -183,14 +183,10 @@ class MQTTClient(MQTTNode):
         if metric:
             for metric_field in metric["fields"].keys():
                 self.client_messages_received_count.labels(
-                    machine=metric["tags"]["machine"],
-                    module=metric["tags"]["module"],
                     measurement=metric["measurement"],
                     field=metric_field,
                 ).inc()
                 self.client_bytes_received_count.labels(
-                    machine=metric["tags"]["machine"],
-                    module=metric["tags"]["module"],
                     measurement=metric["measurement"],
                     field=metric_field,
                 ).inc(len(message.payload))
