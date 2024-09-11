@@ -3,13 +3,9 @@
 # ----------------------------------------------------------------------------
 # Created By  : Matthew Davidson
 # Created Date: 2023-01-23
-# version ='1.0'
 # ---------------------------------------------------------------------------
-"""mqtt_node_network
-
-This module contains the MQTTNode class which is a base class for all MQTT nodes.
-It is a wrapper around the paho-mqtt client which provides logging, error handling,
-and prometheus metrics.
+"""
+A simple example of how to use the mqtt_node_network package.
 """
 # ---------------------------------------------------------------------------
 
@@ -20,19 +16,23 @@ from mqtt_node_network.initialize import initialize
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.client import MQTTClient
 
-PUBLISH_PERIOD = 1
-SUBSCRIBE_TOPICS = ["+/metrics/#"]
-PUBLISH_TOPIC = "metrics"
-QOS = 0
-
-config, logger = initialize(
-    config="config/config.toml", secrets=".env", logging_config="config/logger.yaml"
+# Initialize the configuration
+# Logger configuration is optional
+config = initialize(
+    config="config/config.toml", secrets=".env", logger="config/logger.yaml"
 )
 
+# Get the broker configuration from the config dictionary
+# Assign to variables for easier access
 BROKER_CONFIG = config["mqtt"]["broker"]
+PUBLISH_TOPIC = config["mqtt"]["node_network"]["publish_topic"]
+SUBSCRIBE_TOPICS = config["mqtt"]["client"]["subscribe_topics"]
+QOS = config["mqtt"]["client"]["subscribe_qos"]
+PUBLISH_PERIOD = config["mqtt"]["node_network"]["publish_period"]
 
 
 def publish_forever():
+    """Publish random temperature data to the broker every PUBLISH_PERIOD seconds."""
     client = MQTTNode(broker_config=BROKER_CONFIG).connect()
 
     while True:
@@ -44,6 +44,7 @@ def publish_forever():
 
 
 def subscribe_forever():
+    """Subscribe to the broker and print messages to the console."""
     buffer = []
     client = MQTTClient(
         broker_config=BROKER_CONFIG,
@@ -56,8 +57,8 @@ def subscribe_forever():
 
 
 if __name__ == "__main__":
-    # publish_forever()
-    # or
+    publish_forever()
+    # and/or
     subscribe_forever()
 
 #

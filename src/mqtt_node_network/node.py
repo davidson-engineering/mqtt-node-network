@@ -12,6 +12,7 @@ import logging
 import socket
 from typing import Union
 import time
+import asyncio
 
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
@@ -249,6 +250,22 @@ class MQTTNode:
         if properties:
             properties = parse_properties_dict(properties)
         return self.client.publish(topic, payload, qos, retain, properties=properties)
+
+    def publish_every(
+        self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
+    ):
+        while True:
+            payload = payload_func()
+            self.publish(topic, payload, qos, retain, properties)
+            time.sleep(interval)
+
+    async def publish_every_async(
+        self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
+    ):
+        while True:
+            payload = payload_func()
+            self.publish(topic, payload, qos, retain, properties)
+            await asyncio.sleep(interval)
 
     def loop_forever(self):
         self.client.loop_forever()

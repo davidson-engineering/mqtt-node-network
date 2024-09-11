@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  pytest_functions:
     name: Test on Python ${{ matrix.python-version }} and ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:

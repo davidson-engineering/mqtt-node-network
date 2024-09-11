@@ -1,5 +1,5 @@
 # mqtt-node-network
-### A node and client to help implement an mqqt network
+### A node and client to help implement an mqtt network
 
 ```python
 import threading
