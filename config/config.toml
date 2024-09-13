@@ -16,5 +16,6 @@ subscribe_qos = 1
 
 [mqtt.client.metrics.latency]
 enabled = true
-interval = 1
+interval = 5
 qos = 1
+log_enabled = true

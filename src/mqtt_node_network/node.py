@@ -428,7 +428,15 @@ class MQTTNode:
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        logger.info(f"Disconnected with result code: {reason_code}")
+        logger.info(
+            f"Disconnected with result code: {reason_code}",
+            extra={
+                "node_id": self.node_id,
+                "node_name": self.name,
+                "node_type": self.node_type,
+                "host": self.hostname,
+            },
+        )
 
     def on_message(self, client, userdata, message):
 

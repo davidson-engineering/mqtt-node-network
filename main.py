@@ -75,8 +75,8 @@ def publisher_subscriber_threaded():
 def create_node():
     """Publish random temperature data to the broker every PUBLISH_PERIOD seconds."""
     client = MQTTNode(
-        node_id="publisher",
-        name="publisher",
+        node_id=None,
+        name=None,
         broker_config=BROKER_CONFIG,
         latency_config=config["mqtt"]["client"]["metrics"]["latency"],
     ).connect()
@@ -85,6 +85,18 @@ def create_node():
         time.sleep(1)
 
 
+def create_node_swarm(num_nodes):
+    """Publish random temperature data to the broker every PUBLISH_PERIOD seconds."""
+    threads = []
+    for _ in range(num_nodes):
+        thread = threading.Thread(target=create_node)
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+
 if __name__ == "__main__":
-    create_node()
-#
+    # publisher_subscriber_threaded()
+    create_node_swarm(10)
