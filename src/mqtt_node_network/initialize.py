@@ -5,6 +5,7 @@ from mqtt_node_network.configure import (
     build_config,
     load_secrets,
     MQTTBrokerConfig,
+    LatencyMonitoringConfig,
 )
 import logging
 
@@ -35,5 +36,8 @@ def initialize(
         keepalive=config["mqtt"]["broker"].get("keepalive", 60),
         timeout=config["mqtt"]["broker"].get("timeout", 5),
         reconnect_attempts=config["mqtt"]["broker"].get("reconnect_attempts", 10),
+    )
+    config["mqtt"]["client"]["metrics"]["latency"] = LatencyMonitoringConfig(
+        **config["mqtt"]["client"]["metrics"].get("latency")
     )
     return config

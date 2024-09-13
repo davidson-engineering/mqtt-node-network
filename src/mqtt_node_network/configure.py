@@ -119,6 +119,16 @@ class MQTTBrokerConfig:
     reconnect_attempts: int
 
 
+@dataclass
+class LatencyMonitoringConfig:
+    enabled: bool = False  # Whether to enable latency monitoring
+    request_topic: str = "request"
+    response_topic: str = "response"
+    qos: int = 1  # MQTT Quality of Service level for latency monitoring
+    interval: int = 10  # How often to check latency (in seconds)
+    log_enabled: bool = False
+
+
 def load_secrets(filepath: Union[str, Path] = None, secrets: list[str] = None) -> dict:
     filepath = filepath or FILEPATH_SECRETS_DEFAULT
     if isinstance(filepath, str):

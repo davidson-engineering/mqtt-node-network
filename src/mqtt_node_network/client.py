@@ -130,6 +130,7 @@ class MQTTClient(MQTTNode):
         node_type=None,
         logger=None,
         datatype: type = dict,
+        **kwargs,
     ):
         super().__init__(
             broker_config,
@@ -137,6 +138,7 @@ class MQTTClient(MQTTNode):
             node_id=node_id,
             node_type=node_type,
             logger=logger,
+            **kwargs,
         )
 
         if buffer is None:
