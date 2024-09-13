@@ -345,7 +345,7 @@ class MQTTNode:
             time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False, properties=None):
-        # self.ensure_connection()
+        self.ensure_connection()
         if properties:
             properties = parse_properties_dict(properties)
         return self.client.publish(topic, payload, qos, retain, properties=properties)
