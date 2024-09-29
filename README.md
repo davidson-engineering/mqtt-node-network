@@ -11,10 +11,11 @@
 
 ## Installation
 
-To install the required dependencies for `mqtt_node_network`, run:
+To install application and required dependencies for `mqtt_node_network`, run:
 
 ```
-pip install .
+>>> git clone https://github.com/davidson-engineering/mqtt-node-network.git
+>>> pip install .
 ```
 
 ## Usage
