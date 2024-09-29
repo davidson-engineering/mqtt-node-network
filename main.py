@@ -7,7 +7,9 @@ from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.client import MQTTClient
 
 # Initialize the configuration
-config = initialize_config(config=["config/config.toml", "config/logging.yaml"])
+config = initialize_config(
+    config="config/config.toml", logging_config="config/logging.yaml"
+)
 
 BROKER_CONFIG = config["broker"]
 QOS = config["client"]["subscribe_qos"]

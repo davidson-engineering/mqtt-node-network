@@ -31,8 +31,9 @@ def get_nested_value(config, target_key):
 
 
 def initialize_config(
-    config: Union[str, list[str]] = None,
+    config: str = None,
     secrets: str = None,
+    logging_config: Union[dict, str] = None,
 ) -> tuple[dict, logging.Logger]:
     """
     Initialize the configuration and logger.
@@ -47,9 +48,11 @@ def initialize_config(
     config = load_configs(config, secrets_filepath=secrets)
 
     # If a logger configuration is provided, set up logging
-    if logger_config := config.get("logging"):
+    if logging_config:
+        if isinstance(logging_config, str):
+            logging_config = load_configs(logging_config)
         Path.mkdir(Path("logs"), exist_ok=True)
-        dictConfig(logger_config)
+        dictConfig(logging_config)
 
     mqtt_config = get_nested_value(config, "mqtt")
 

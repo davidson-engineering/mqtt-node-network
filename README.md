@@ -119,12 +119,24 @@ for metric in mqtt_client.buffer:
 
 ## Configuration
 
-The MQTT client can be configured using a configuration file in formats like `TOML` or `YAML`. These configurations include broker settings, QoS levels, and topics to subscribe to or publish to.
+The MQTT client can be configured using a configuration file in formats like `TOML` or `YAML`. The `initialize_config` function is used to initialize the application configuration. These configurations include broker settings, QoS levels, and topics to subscribe to or publish to.
+
+Environment variables are automatically parsed in the  configuration file if the format ${MY_ENV_VAR} is used.
+
+```python
+from mqtt_node_network.initialize import initialize_config
+
+# Initialize the configuration
+config = initialize_config(config="config/config.toml")
+```
+
 
 Example `config.toml`:
 
 ```toml
 [broker]
+username = "${MQTT_BROKER_USERNAME}"
+password = "${MQTT_BROKER_PASSWORD}"
 host = "broker.hivemq.com"
 port = 1883
 keepalive = 60
@@ -139,10 +151,17 @@ subscribe_qos = 1
 topic_structure = "sensor/location/device/measurement"
 ```
 
+
 ### Example Logging Configuration (`logging.yaml`)
 
-You can customize the logging behavior using a `logging.yaml` file to manage log levels, handlers, and formats for different components.
 
+You can customize the logging behavior using a `logging.yaml` file to manage log levels, handlers, and formats for different components. The location of this file is passed into the `initialize_config` function using the `logging_config` argument. 
+For more information on using dictConfig, see [here](https://docs.python.org/3/library/logging.config.html).
+
+```python
+config = initialize_config(config="config/config.toml", logging_config="config/logging.yaml")
+```
+#### Example logging yaml file:
 ```yaml
 version: 1
 formatters:
