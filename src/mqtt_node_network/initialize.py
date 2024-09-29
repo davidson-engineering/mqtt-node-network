@@ -31,7 +31,7 @@ def get_nested_value(config, target_key):
 
 
 def initialize_config(
-    config: str | list[str] = None,
+    config: Union[str | list[str]] = None,
     secrets: str = None,
 ) -> tuple[dict, logging.Logger]:
     """
