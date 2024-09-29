@@ -30,6 +30,11 @@ jobs:
           - "8883:8883"
           - "8084:8084"
           - "18083:18083"
+    steps:
+      # Add a simple step to keep the job alive while the service is running
+      - name: Wait for broker
+      run: sleep 300  # Keeps the broker running for 5 minutes (adjust time as needed)
+  
     outputs:
       broker_url: "localhost:1883"  # You can output this URL for use in dependent jobs
 
