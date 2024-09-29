@@ -1,6 +1,8 @@
 secrets_filepath = ".env"
 
 [mqtt.broker]
+username = "${MQTT_BROKER_USERNAME}"
+password = "${MQTT_BROKER_PASSWORD}"
 hostname = "emqx-broker"
 port = 1_883
 
@@ -13,3 +15,4 @@ prometheus_port = 8_000
 node_id = "mqtt_client_0"
 subscribe_topics = ["topic_0/#"]
 subscribe_qos = 0
+publish_period = 1

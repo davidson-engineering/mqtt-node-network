@@ -8,6 +8,7 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
+from dataclasses import dataclass
 import logging
 import socket
 from typing import Union
@@ -18,9 +19,19 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter
-from mqtt_node_network.configure import MQTTBrokerConfig
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MQTTBrokerConfig:
+    username: str
+    password: str
+    keepalive: int
+    hostname: str
+    port: int
+    timeout: int
+    reconnect_attempts: int
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:
@@ -87,6 +98,7 @@ class MQTTNode:
         "Total number of bytes received by node",
         labelnames=("node_id", "node_name", "node_type", "host"),
     )
+
     node_bytes_sent_count = Counter(
         "node_bytes_sent_total",
         "Total number of bytes sent by node",

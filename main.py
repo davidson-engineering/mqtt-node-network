@@ -1,44 +1,39 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# ----------------------------------------------------------------------------
-# Created By  : Matthew Davidson
-# Created Date: 2023-01-23
-# ---------------------------------------------------------------------------
-"""
-A simple example of how to use the mqtt_node_network package.
-"""
-# ---------------------------------------------------------------------------
-
 import time
 import random
-from mqtt_node_network.initialize import initialize
-
+import signal
+import sys
+from mqtt_node_network.initialize import initialize_config
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.client import MQTTClient
 
 # Initialize the configuration
-# Logger configuration is optional
-config = initialize(
-    config="config/config.toml", secrets=".env", logger="config/logger.yaml"
-)
+config = initialize_config(config=["config/config.toml", "config/logging.yaml"])
 
-# Get the broker configuration from the config dictionary
-# Assign to variables for easier access
-BROKER_CONFIG = config["mqtt"]["broker"]
-PUBLISH_TOPIC = config["mqtt"]["node_network"]["publish_topic"]
-SUBSCRIBE_TOPICS = config["mqtt"]["client"]["subscribe_topics"]
-QOS = config["mqtt"]["client"]["subscribe_qos"]
-PUBLISH_PERIOD = config["mqtt"]["node_network"]["publish_period"]
+BROKER_CONFIG = config["broker"]
+QOS = config["client"]["subscribe_qos"]
+PUBLISH_PERIOD = config["client"]["publish_period"]
+publish_topic = config["client"]["publish_topic"]
+subscribe_topics = config["client"]["subscribe_topics"]
+
+# Flag for stopping the infinite loop
+running = True
+
+
+def signal_handler(sig, frame):
+    """Handle termination signals for graceful shutdown."""
+    global running
+    print("Shutting down...")
+    running = False
 
 
 def publish_forever():
     """Publish random temperature data to the broker every PUBLISH_PERIOD seconds."""
     client = MQTTNode(broker_config=BROKER_CONFIG).connect()
 
-    while True:
+    while running:
         payload = random.random()
         client.publish(
-            topic=f"{client.node_id}/{PUBLISH_TOPIC}/temperature/IR/0", payload=payload
+            topic=f"{client.node_id}/{publish_topic}/temperature/IR/0", payload=payload
         )
         time.sleep(PUBLISH_PERIOD)
 
@@ -49,16 +44,23 @@ def subscribe_forever():
     client = MQTTClient(
         broker_config=BROKER_CONFIG,
         buffer=buffer,
-        topic_structure=config["mqtt"]["node_network"]["topic_structure"],
+        topic_structure=config["node_network"]["topic_structure"],
     ).connect()
-    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    while True:
+    client.subscribe(topic=subscribe_topics, qos=QOS)
+
+    while running:
         time.sleep(1)
 
 
 if __name__ == "__main__":
-    publish_forever()
-    # and/or
-    subscribe_forever()
+    # Handle Ctrl+C to stop the infinite loop
+    signal.signal(signal.SIGINT, signal_handler)
 
-#
+    mode = "publish"  # Switch between 'publish' or 'subscribe'
+
+    if mode == "publish":
+        publish_forever()
+    elif mode == "subscribe":
+        subscribe_forever()
+
+    print("Exiting.")

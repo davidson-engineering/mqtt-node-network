@@ -1,61 +1,167 @@
-# mqtt-node-network
-### A node and client to help implement an mqtt network
+# MQTT Node Network
+
+`mqtt_node_network` is a Python package designed for interacting with MQTT brokers, offering a simple way to handle nodes and clients in a publish-subscribe messaging model. The package supports metrics collection, topic parsing, and Prometheus integration for monitoring message and byte transfers.
+
+## Features
+
+- **MQTTNode Class**: The base class for connecting to an MQTT broker, allowing the creation of nodes for publishing and subscribing.
+- **MQTTClient Class**: An extension of `MQTTNode` that includes additional functionality for message buffering, topic parsing, and metrics collection.
+- **Prometheus Metrics**: Integrated counters for tracking MQTT messages and byte traffic.
+- **Flexible Topic Parsing**: Define custom topic structures for extracting relevant information from MQTT topics.
+
+## Installation
+
+To install the required dependencies for `mqtt_node_network`, run:
+
+```
+pip install .
+```
+
+## Usage
+
+### 1. MQTTNode
+
+The `MQTTNode` class allows you to establish a connection with an MQTT broker. This node can act as a base for creating more complex functionality like publishing and subscribing.
 
 ```python
-import threading
+from mqtt_node_network.node import MQTTNode, MQTTBrokerConfig
 
-SUBSCRIBER_NODE_ID = "node_subscriber_0"
-PUBLISHER_NODE_ID = "node_publisher_0"
-GATHER_PERIOD = 1
-SUBSCRIBE_TOPICS = ["+/metrics"]
-PUBLISH_TOPIC = f"{PUBLISHER_NODE_ID}/metrics"
-QOS = 0
-
-BROKER_CONFIG = MQTTBrokerConfig(
-    hostname="localhost,
+# Example broker configuration
+broker_config = MQTTBrokerConfig(
+    host="broker.hivemq.com",
     port=1883,
     keepalive=60,
-    username="user",
-    password="super_secret_password",
 )
 
-def publish_forever():
-    import json
-    import time
-    import random
+# Initialize an MQTTNode
+mqtt_node = MQTTNode(broker_config=broker_config)
 
-    from mqtt_node_network.node import MQTTNode
+# Connect to the broker
+mqtt_node.connect()
 
-    node = MQTTNode(broker_config=BROKER_CONFIG, node_id=PUBLISHER_NODE_ID).connect()
+# Publish data
+mqtt_node.publish(topic="sensor/office/temperature", payload="22.5")
+```
 
-    while True:
+### 2. MQTTClient
 
-        # Sending a single value
-        data = 69
-        # OR to send a complex data structure, serialize to json first
-        data = {
-            "measurement": "test_measure",
-            "fields": {"random_data": random.random()},
-            "time": time.time(),
-        }
-        payload = json.dumps(data)
-        
-        node.publish(topic=PUBLISH_TOPIC, payload=payload)
-        time.sleep(GATHER_PERIOD)
+The `MQTTClient` class extends `MQTTNode` by adding functionality to parse incoming payloads and store them in a buffer. It also tracks message metrics using Prometheus counters.
 
-def subscribe_forever():
-    from mqtt_node_network.client import MQTTClient
+```python
+from mqtt_node_network.client import MQTTClient
 
-    # Create a buffer to store messages received from subscribed topics
-    buffer = []
-    client = MQTTClient(
-        broker_config=BROKER_CONFIG, node_id=SUBSCRIBER_NODE_ID, buffer=buffer
-    ).connect()
-    client.subscribe(topics=SUBSCRIBE_TOPICS, qos=QOS)
-    client.loop_forever()
+# Define a topic structure for parsing
+topic_structure = "sensor/location/device/measurement"
 
+# Initialize the MQTT client with buffer
+mqtt_client = MQTTClient(
+    broker_config=broker_config,
+    topic_structure=topic_structure,
+    buffer=[]
+)
 
-threading.Thread(target=publish_forever).start()
-threading.Thread(target=subscribe_forever).start()
+# Connect to the broker
+mqtt_client.connect()
 
+# Subscribe to topics
+mqtt_client.subscribe(topic="sensor/#")
+
+# Handle messages (automatically increments Prometheus counters)
+mqtt_client.loop_forever()
+```
+
+### 3. Topic Parsing
+
+The `parse_topic` function allows for extracting structured data from MQTT topics. You can customize the structure to match your specific use case.
+
+```python
+from mqtt_node_network.client import parse_topic
+
+topic = "sensor/office/device123/temperature"
+structure = "sensor/location/device/measurement"
+
+parsed = parse_topic(topic, structure)
+
+print(parsed)
+# Output: {'sensor': 'sensor', 'location': 'office', 'device': 'device123', 'measurement': 'temperature'}
+```
+
+### 4. Metrics Collection
+
+The `MQTTClient` automatically collects metrics using Prometheus counters. These metrics include:
+
+- **Bytes Received**: `client_bytes_received_total`
+- **Bytes Sent**: `client_bytes_sent_total`
+- **Messages Received**: `client_messages_received_total`
+- **Messages Sent**: `client_messages_sent_total`
+
+You can view and track these metrics using Prometheus or Grafana for monitoring system performance.
+
+```python
+from prometheus_client import start_http_server
+
+# Start a Prometheus metrics server
+start_http_server(8000)
+
+# Run the MQTT client
+mqtt_client.loop_forever()
+```
+
+### 5. Buffering Metrics
+
+Incoming messages are parsed into `Metric` objects and stored in a buffer for further processing. You can customize the buffer to store different types of data structures (e.g., a list or deque).
+
+```python
+# Access the buffer after receiving messages
+for metric in mqtt_client.buffer:
+    print(metric)
+```
+
+## Configuration
+
+The MQTT client can be configured using a configuration file in formats like `TOML` or `YAML`. These configurations include broker settings, QoS levels, and topics to subscribe to or publish to.
+
+Example `config.toml`:
+
+```toml
+[broker]
+host = "broker.hivemq.com"
+port = 1883
+keepalive = 60
+
+[client]
+subscribe_topics = ["sensor/#"]
+publish_topic = "sensor/office/temperature"
+publish_period = 5
+subscribe_qos = 1
+
+[node_network]
+topic_structure = "sensor/location/device/measurement"
+```
+
+### Example Logging Configuration (`logging.yaml`)
+
+You can customize the logging behavior using a `logging.yaml` file to manage log levels, handlers, and formats for different components.
+
+```yaml
+version: 1
+formatters:
+  simple:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: simple
+    level: DEBUG
+
+loggers:
+  mqtt_node_network:
+    level: DEBUG
+    handlers: [console]
+    propagate: no
+
+root:
+  level: INFO
+  handlers: [console]
 ```

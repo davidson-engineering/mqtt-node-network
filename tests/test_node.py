@@ -1,14 +1,12 @@
 def test_subscribe_to_topic():
 
-    from mqtt_node_network.initialize import initialize
+    from mqtt_node_network.initialize import initialize_config
     from mqtt_node_network.node import MQTTNode
 
     SUBSCRIBE_TOPICS = ["+/metrics/#"]
     QOS = 0
 
-    config = initialize(
-        config="config/config.toml", secrets=".env", logger="config/logger.yaml"
-    )
+    config = initialize_config(config="config/config.toml", secrets=".env")
 
     BROKER_CONFIG = config["mqtt"]["broker"]
 

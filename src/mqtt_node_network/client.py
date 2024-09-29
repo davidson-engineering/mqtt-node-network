@@ -8,7 +8,7 @@ import logging
 from prometheus_client import Counter
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.configure import MQTTBrokerConfig
+from mqtt_node_network.node import MQTTBrokerConfig
 
 
 logger = logging.getLogger(__name__)
