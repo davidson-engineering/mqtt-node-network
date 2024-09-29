@@ -16,6 +16,9 @@ jobs:
   test_mqtt_broker:
     name: Test on Python ${{ matrix.python-version }} and ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    concurrency:
+      group: live-broker
+      cancel-in-progress: true
     strategy:
       matrix:
         os: [ubuntu-latest]
