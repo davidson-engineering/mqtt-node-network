@@ -36,6 +36,7 @@ jobs:
   run_pytest:
     name: Test on Python ${{ matrix.python-version }} and ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: start_broker  # Ensure this job runs after the broker is started
     strategy:
       matrix:
         os: [ubuntu-latest]
