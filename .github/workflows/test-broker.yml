@@ -13,16 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  test_mqtt_broker:
-    name: Test on Python ${{ matrix.python-version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    concurrency:
-      group: live-broker
-      cancel-in-progress: true
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+  start_broker:
+    runs-on: ubuntu-latest
     services:
       emqx:
         image: emqx:latest
@@ -38,6 +30,17 @@ jobs:
           - "8883:8883"
           - "8084:8084"
           - "18083:18083"
+    outputs:
+      broker_url: "localhost:1883"  # You can output this URL for use in dependent jobs
+
+  run_pytest:
+    name: Test on Python ${{ matrix.python-version }} and ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13-r.c.2"]
+
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
