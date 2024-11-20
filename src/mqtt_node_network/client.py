@@ -8,7 +8,7 @@ import logging
 from prometheus_client import Counter
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.configure import MQTTBrokerConfig
+from mqtt_node_network.node import MQTTBrokerConfig
 
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class Metric(MutableMapping):
     measurement: str
     fields: dict
-    time: float | int
+    time: Union[float, int]
     tags: dict = field(default_factory=dict)
 
     def __getitem__(self, key):

@@ -1,10 +1,7 @@
 [project]
 name = "mqtt-node-network"
-description = '''This module is a wrapper around the paho-mqtt client which provides logging, error handling, and prometheus metrics.'''
+description = "This module is a wrapper around the paho-mqtt client which provides client base classes, logging, error handling, and prometheus metrics."
 
-# If a project, then you can specify version here
-# version = "0.0.0"
-# If a module, then fetch version dynamically (see [tool.setuptools.dynamic] below)
 dynamic = ["version"]
 
 readme = "README.md"
@@ -22,6 +19,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
 
 dependencies = [
@@ -32,26 +30,12 @@ dependencies = [
   "tomli==2.0.1",
   "PyYAML==6.0.1",
   "python-json-logger==2.0.7",
+  "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.0.3",
+  "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git",
 ]
 
-# If a module, then use fetch version from src/module_name/__init__.py
 [tool.setuptools.dynamic]
 version = { attr = "mqtt_node_network.__version__" }
 
 [project.optional-dependencies]
 test = ["pytest >= 7.1.1"]
-
-# [project.urls]
-# homepage = "https://example.com"
-# documentation = "https://readthedocs.org"
-# repository = "https://github.com"
-# changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
-
-# [project.scripts]
-# spam-cli = "spam:main_cli"
-
-# [project.gui-scripts]
-# spam-gui = "spam:main_gui"
-
-# [project.entry-points."spam.magical"]
-# tomatoes = "spam:main_tomatoes"

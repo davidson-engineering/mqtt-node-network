@@ -1,0 +1,14 @@
+[mqtt.broker]
+hostname = "localhost"
+port = 1883
+keepalive = 60
+
+[mqtt.node_network]
+enable_prometheus_server = false
+prometheus_port = 8000
+
+[mqtt.client]
+subscribe_qos = 0
+publish_period = 1
+
+secrets_filepath = ".env"
