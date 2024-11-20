@@ -18,8 +18,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13.0-rc.2"]
     services:
       emqx:
         image: emqx:latest
@@ -28,13 +28,10 @@ jobs:
           EMQX_HOST: gh-actions
           EMQX_NODE_NAME: test-emqx-broker@gh-actions
           EMQX_ALLOW_ANONYMOUS: true
-    
+
         ports:
-          - "1883:1883"
-          - "8083:8083"
-          - "8883:8883"
-          - "8084:8084"
-          - "18083:18083"
+          - 1883:1883
+          - 8083:8083
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}

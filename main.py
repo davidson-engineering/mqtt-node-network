@@ -1,26 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# ----------------------------------------------------------------------------
-# Created By  : Matthew Davidson
-# Created Date: 2023-01-23
-# ---------------------------------------------------------------------------
-"""
-A simple example of how to use the mqtt_node_network package.
-"""
-# ---------------------------------------------------------------------------
-
 import time
 import random
 import threading
 
-from mqtt_node_network.initialize import initialize
+from mqtt_node_network.initialize import initialize_config
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.client import MQTTClient
 
 # Initialize the configuration
-# Logger configuration is optional
-config = initialize(
-    config="config/config.toml", secrets=".env", logger="config/logger.yaml"
+config = initialize_config(
+    config="config/config.toml", logging_config="config/logging.yaml"
 )
 
 # Get the broker configuration from the config dictionary
@@ -58,6 +46,7 @@ def subscribe_forever():
         latency_config=config["mqtt"]["client"]["metrics"]["latency"],
     ).connect()
     client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+
     while True:
         time.sleep(1)
 

@@ -26,6 +26,17 @@ from mqtt_node_network.configure import MQTTBrokerConfig, LatencyMonitoringConfi
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class MQTTBrokerConfig:
+    username: str
+    password: str
+    keepalive: int
+    hostname: str
+    port: int
+    timeout: int
+    reconnect_attempts: int
+
+
 def shorten_data(data: str, max_length: int = 75) -> str:
     """Shorten data to a maximum length."""
     if not isinstance(data, str):
@@ -114,6 +125,7 @@ class MQTTNode:
         "Total number of bytes received by node",
         labelnames=("node_id", "node_name", "node_type", "host"),
     )
+
     node_bytes_sent_count = Counter(
         "node_bytes_sent_total",
         "Total number of bytes sent by node",
