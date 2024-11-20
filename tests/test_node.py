@@ -8,7 +8,7 @@ def test_subscribe_to_topic():
 
     config = initialize_config(
         config="tests/config-test.toml", secrets="tests/test.env"
-    )
+    )["mqtt"]
 
     BROKER_CONFIG = config["broker"]
 

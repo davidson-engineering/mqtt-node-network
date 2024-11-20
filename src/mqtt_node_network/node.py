@@ -21,7 +21,6 @@ import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter, Gauge
-from mqtt_node_network.configure import MQTTBrokerConfig, LatencyMonitoringConfig
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,16 @@ class MQTTBrokerConfig:
     port: int
     timeout: int
     reconnect_attempts: int
+
+
+@dataclass
+class LatencyMonitoringConfig:
+    enabled: bool = False  # Whether to enable latency monitoring
+    request_topic: str = "request"
+    response_topic: str = "response"
+    qos: int = 1  # MQTT Quality of Service level for latency monitoring
+    interval: int = 10  # How often to check latency (in seconds)
+    log_enabled: bool = False
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:

@@ -10,5 +10,9 @@ prometheus_port = 8000
 [mqtt.client]
 subscribe_qos = 0
 publish_period = 1
-
 secrets_filepath = ".env"
+
+[mqtt.client.metrics.latency]
+enabled = true
+interval = 1
+qos = 1
