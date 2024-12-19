@@ -25,5 +25,5 @@ def test_subscribe_to_topic(mqtt_client):
     mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
     assert len(mqtt_client.subscriptions) == 3
 
-    mqtt_client.mqtt_client.disconnect()
+    mqtt_client.client.disconnect()
     assert not mqtt_client.is_connected()
