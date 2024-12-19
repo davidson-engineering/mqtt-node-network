@@ -31,7 +31,7 @@ dependencies = [
   "PyYAML==6.0.1",
   "python-json-logger==2.0.7",
   "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.0.3",
-  "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.0",
+  "fast-database-clients @ git+https://github.com/generalmattza/fast-database-clients.git@v2.2.0",
 ]
 
 [tool.setuptools.dynamic]
