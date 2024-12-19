@@ -529,6 +529,20 @@ class MQTTNode:
     # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
     #  self.logger.info("Unsubscribed from topic")
 
+    def message_callback_add(self, topic, callback):
+        """
+        Add a callback to a topic. When a message is received on the topic, the callback will be called.
+        The callback should take the form of a function that accepts three arguments: client, userdata, message.
+        callback(client, userdata, message)
+        :topic: str - The topic to add the callback to
+        :callback: function - The function to be called
+        """
+        self.client.message_callback_add(topic, callback)
+        logger.info(
+            f"Added callback to topic: {topic}",
+            extra={"topic": topic, "callback": callback},
+        )
+
     def on_log(self, client, userdata, level, buf):
         logger.debug(
             "Log: {}".format(buf),
