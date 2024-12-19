@@ -1,40 +1,29 @@
-def test_subscribe_to_topic():
-
-    from mqtt_node_network.initialize import initialize_config
-    from mqtt_node_network.node import MQTTNode
+def test_subscribe_to_topic(mqtt_client):
 
     SUBSCRIBE_TOPICS = ["+/#"]
     QOS = 0
 
-    config = initialize_config(
-        config="tests/config-test.toml", secrets="tests/test.env"
-    )["mqtt"]
-
-    BROKER_CONFIG = config["broker"]
-
-    client = MQTTNode(broker_config=BROKER_CONFIG).connect()
-
-    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert client.is_connected()
-    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    client.restore_subscriptions()
-    assert len(client.subscriptions) == 1
+    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    assert mqtt_client.is_connected()
+    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    mqtt_client.restore_subscriptions()
+    assert len(mqtt_client.subscriptions) == 1
 
     SUBSCRIBE_STRING = SUBSCRIBE_TOPICS[0]
-    client.subscribe(topic=SUBSCRIBE_STRING, qos=QOS)
-    assert len(client.subscriptions) == 1
+    mqtt_client.subscribe(topic=SUBSCRIBE_STRING, qos=QOS)
+    assert len(mqtt_client.subscriptions) == 1
 
     SUBSCRIBE_TUPLE = (SUBSCRIBE_STRING, QOS)
-    client.subscribe(topic=SUBSCRIBE_TUPLE)
-    assert len(client.subscriptions) == 1
+    mqtt_client.subscribe(topic=SUBSCRIBE_TUPLE)
+    assert len(mqtt_client.subscriptions) == 1
 
     SUBSCRIBE_TOPICS = [SUBSCRIBE_TOPICS[0], SUBSCRIBE_TOPICS[0]]
-    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert len(client.subscriptions) == 1
+    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    assert len(mqtt_client.subscriptions) == 1
 
     SUBSCRIBE_TOPICS = ["topic1/#", "topic2/#"]
-    client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert len(client.subscriptions) == 3
+    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    assert len(mqtt_client.subscriptions) == 3
 
-    client.client.disconnect()
-    assert not client.is_connected()
+    mqtt_client.client.disconnect()
+    assert not mqtt_client.is_connected()

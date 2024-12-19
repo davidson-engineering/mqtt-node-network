@@ -15,6 +15,7 @@ To install application and required dependencies for `mqtt_node_network`, run:
 
 ```
 >>> git clone https://github.com/davidson-engineering/mqtt-node-network.git
+>>> cd mqtt-node-network
 >>> pip install .
 ```
 
@@ -117,6 +118,85 @@ Incoming messages are parsed into `Metric` objects and stored in a buffer for fu
 for metric in mqtt_client.buffer:
     print(metric)
 ```
+### 6. Message Callbacks
+
+The `message_callback_add()` function in the Paho MQTT Python client library allows you to assign specific callback functions to individual topics or topic patterns. This feature enhances the modularity of your application by enabling different message processing logic for different topics.
+
+#### Function Definition
+
+```python
+Client.message_callback_add(sub, callback)
+```
+
+#### Parameters
+
+- `sub` (str): The subscription topic or topic pattern (with wildcards) to which the callback should be attached.
+- `callback` (function): The function to be invoked when a message matching the specified topic or pattern is received. This function should have the following signature:
+
+  ```python
+  def callback(client, userdata, message):
+      pass
+  ```
+
+  Where:
+  - `client` is the `Client` instance invoking the callback.
+  - `userdata` is the private user data as set in `Client()` or `user_data_set()`.
+  - `message` is an instance of `MQTTMessage`, which includes attributes like `topic`, `payload`, `qos`, etc.
+
+#### Usage Example
+
+Here's how to use `message_callback_add()` to assign specific callbacks to different topic patterns:
+
+```python
+import paho.mqtt.client as mqtt
+
+# Define callback for messages related to system status
+def on_system_status(client, userdata, message):
+    print(f"System Status Update: {message.topic} - {message.payload.decode()}")
+
+# Define callback for messages related to sensor data
+def on_sensor_data(client, userdata, message):
+    print(f"Sensor Data Received: {message.topic} - {message.payload.decode()}")
+
+# Define a general callback for unmatched topics
+def on_general_message(client, userdata, message):
+    print(f"General Message: {message.topic} - {message.payload.decode()}")
+
+# Create MQTT client instance
+client = mqtt.Client()
+
+# Assign specific callbacks to topic patterns
+client.message_callback_add("system/status/#", on_system_status)
+client.message_callback_add("sensors/+/data", on_sensor_data)
+
+# Assign the general callback for all other messages
+client.on_message = on_general_message
+
+# Connect to the broker
+client.connect("mqtt.example.com", 1883, 60)
+
+# Subscribe to topics
+client.subscribe([("system/status/#", 0), ("sensors/+/data", 0), ("#", 0)])
+
+# Start the network loop
+client.loop_forever()
+```
+
+#### Explanation
+
+- `on_system_status` handles messages for topics matching the pattern `system/status/#`.
+- `on_sensor_data` handles messages for topics like `sensors/+/data`, where `+` is a wildcard for a single level.
+- `on_general_message` serves as a fallback for any messages that don't match the specified patterns.
+
+#### Important Considerations
+
+- **Subscription Management**: Ensure that you subscribe to the topics or patterns for which you've added callbacks using the `subscribe()` method. The `message_callback_add()` function does not handle subscriptions; it only assigns callbacks to topics.
+
+- **Callback Execution Context**: Avoid adding or modifying callbacks within other callback functions, as this can lead to deadlocks due to the client attempting to acquire the same lock multiple times. It's advisable to set up all necessary callbacks during the initial client configuration, before establishing the connection to the broker.
+
+- **Thread Safety**: The Paho MQTT client operates in a multi-threaded environment, so ensure that any resources shared between threads are properly synchronized.
+
+By using `message_callback_add()`, you can build a highly flexible and maintainable MQTT client that handles complex topic-based message processing with ease.
 
 ## Configuration
 
@@ -156,7 +236,7 @@ topic_structure = "sensor/location/device/measurement"
 ### Example Logging Configuration (`logging.yaml`)
 
 
-You can customize the logging behavior using a `logging.yaml` file to manage log levels, handlers, and formats for different components. The location of this file is passed into the `initialize_config` function using the `logging_config` argument. 
+You can customize the logging behavior using a `logging.yaml` file to manage log levels, handlers, and formats for different components. The location of this file is passed into the `initialize_config` function using the optional `logging_config` argument. 
 For more information on using dictConfig, see [here](https://docs.python.org/3/library/logging.config.html).
 
 ```python
