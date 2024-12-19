@@ -6,6 +6,11 @@ handlers:
     formatter: default
     level   : DEBUG
     stream  : ext://sys.stdout
+  node_id_console:
+    class : logging.StreamHandler
+    formatter: node_id
+    level   : DEBUG
+    stream  : ext://sys.stdout
   mqtt_node_network.debug.file:
     class : logging.handlers.RotatingFileHandler
     formatter: json
@@ -27,6 +32,9 @@ formatters:
   default:
     format: '%(asctime)s %(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
+  node_id:
+    format: '%(asctime)s %(levelname)-8s (%(node_id)-8s) %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
   verbose:
     format: "%(asctime)s,%(msecs)d - %(name)s - %(levelname)-8s - %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
@@ -36,8 +44,9 @@ formatters:
 
 loggers:
   mqtt_node_network:
-    level: DEBUG
+    level: INFO
     handlers:
-      - console
+      - node_id_console
       - mqtt_node_network.debug.file
       - mqtt_node_network.info.file
+    propagate: no

@@ -16,3 +16,8 @@ node_id = "mqtt_client_0"
 subscribe_topics = ["topic_0/#"]
 subscribe_qos = 0
 publish_period = 1
+
+[mqtt.client.metrics.latency]
+enabled = true
+interval = 1
+qos = 1

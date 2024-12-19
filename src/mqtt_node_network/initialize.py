@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union
 from mqtt_node_network import (
     MQTTBrokerConfig,
+    LatencyMonitoringConfig,
 )
 import logging
 from config_loader import load_configs
@@ -71,4 +72,7 @@ def initialize_config(
         timeout=mqtt_config["broker"].get("timeout", 5),
         reconnect_attempts=mqtt_config["broker"].get("reconnect_attempts", 10),
     )
-    return mqtt_config
+    config["mqtt"]["client"]["metrics"]["latency"] = LatencyMonitoringConfig(
+        **config["mqtt"]["client"]["metrics"].get("latency")
+    )
+    return config
