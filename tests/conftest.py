@@ -3,7 +3,7 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def test_client():
+def mqtt_client():
     from mqtt_node_network.initialize import initialize_config
     from mqtt_node_network.node import MQTTNode
 
