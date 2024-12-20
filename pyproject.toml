@@ -31,13 +31,18 @@ dependencies = [
   "tomli==2.0.1",
   "PyYAML==6.0.1",
   "python-json-logger==2.0.7",
-  "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.0.6",
+  "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.1.0",
   "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.0",
   "mypy>=1.14.0",
 ]
 
 [tool.setuptools.dynamic]
 version = { attr = "mqtt_node_network.__version__" }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+]
 
 [project.optional-dependencies]
 test = ["pytest >= 7.1.1"]

@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import asdict, dataclass, field
 import json
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union, Type, Deque
 from collections.abc import MutableMapping
 import time
 import logging
@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Metric(MutableMapping):
     measurement: str
-    fields: dict
+    fields: Dict[str, Union[int, float, str]]
     time: Union[float, int]
-    tags: dict = field(default_factory=dict)
+    tags: Dict[str, str] = field(default_factory=dict)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Union[str, int, float, dict]:
         return asdict(self)[key]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Union[str, int, float, dict]) -> None:
         setattr(self, key, value)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         if hasattr(self, key):
             setattr(
                 self, key, None
@@ -34,16 +34,27 @@ class Metric(MutableMapping):
         else:
             raise KeyError(f"{key} is not a valid attribute of Metric")
 
-    def __iter__(self):
+    def __iter__(self) -> iter:
         return iter(asdict(self))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(asdict(self))
 
 
 def parse_topic(
     topic: str, structure: str, field_separator: str = "-"
-) -> dict[str, str]:
+) -> Dict[str, str]:
+    """
+    Parse a topic string into a dictionary based on a given structure.
+
+    Args:
+        topic: The topic string to parse.
+        structure: The structure template to match against the topic.
+        field_separator: Separator for multi-part fields. Defaults to "-".
+
+    Returns:
+        A dictionary mapping structure fields to topic parts.
+    """
     topic_parts = topic.rstrip("/").split("/")
     structure_parts = structure.rstrip("/").split("/")
     len_diff = len(topic_parts) - len(structure_parts)
@@ -76,7 +87,18 @@ def parse_topic(
 
 def parse_payload_to_metric(
     value: Union[int, float, str], topic: str, structure: str
-) -> Union[Metric, dict, None]:
+) -> Union[Metric, Dict, None]:
+    """
+    Convert a payload and topic into a Metric object or dictionary.
+
+    Args:
+        value: The payload value (e.g., int, float, or string).
+        topic: The topic string associated with the value.
+        structure: The expected structure of the topic.
+
+    Returns:
+        A Metric object or dictionary, or None if parsing fails.
+    """
     try:
         parsed_topic = parse_topic(topic, structure)
     except ValueError as e:
@@ -95,6 +117,9 @@ def parse_payload_to_metric(
 
 
 class MQTTMetricsNode(MQTTNode):
+    """
+    A specialized MQTTNode for processing metrics with Prometheus integration.
+    """
 
     metric_bytes_received_count = Counter(
         "metric_bytes_received_total",
@@ -125,11 +150,24 @@ class MQTTMetricsNode(MQTTNode):
         broker_config: MQTTBrokerConfig,  # type: ignore
         topic_structure: str,
         node_id: Optional[str] = None,
-        buffer: Optional[Union[list, deque]] = None,
+        buffer: Optional[Union[List, Deque]] = None,
         subscribe_config: Optional[SubscribeConfig] = None,  # type: ignore
         latency_config: Optional[LatencyMonitoringConfig] = None,  # type: ignore
-        datatype: Optional[type] = dict,
+        datatype: Optional[Type] = dict,
     ):
+        """
+        Initialize the MQTTMetricsNode.
+
+        Args:
+            name: The name of the node.
+            broker_config: Configuration for the MQTT broker.
+            topic_structure: The expected structure of topics.
+            node_id: An optional unique identifier for the node.
+            buffer: An optional buffer for storing parsed metrics (e.g., a list or deque).
+            subscribe_config: Configuration for subscription topics.
+            latency_config: Configuration for latency monitoring.
+            datatype: The expected type for parsed metrics. Defaults to dict.
+        """
         super().__init__(
             broker_config,
             name=name,
@@ -143,6 +181,14 @@ class MQTTMetricsNode(MQTTNode):
         self.topic_structure = topic_structure
 
     def on_message(self, metric, userdata, message):
+        """
+        Handle incoming MQTT messages, parse them into metrics, and store in the buffer.
+
+        Args:
+            metric: The metric to process.
+            userdata: User-specific data passed during message receipt.
+            message: The MQTT message object.
+        """
         super().on_message(metric, userdata, message)
 
         data = message.payload.decode()

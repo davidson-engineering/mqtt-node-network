@@ -1,4 +1,4 @@
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.metrics_node import MQTTMetricsNode

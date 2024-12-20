@@ -1,12 +1,14 @@
 from dataclasses import asdict, dataclass
 from logging.config import dictConfig
 from pathlib import Path
-from typing import Mapping, Optional, Union
+from typing import Dict, List, Mapping, Optional, Union
 import logging
 from config_loader import load_configs
 
 
 class UnpackMixin(Mapping):
+    """A mixin class to unpack dataclass attributes as a mapping."""
+
     def __iter__(self):
         return iter(asdict(self).keys())
 
@@ -21,6 +23,8 @@ class UnpackMixin(Mapping):
 
 @dataclass
 class MQTTBrokerConfig:
+    """Configuration for connecting to an MQTT broker."""
+
     username: str
     password: str
     keepalive: int
@@ -32,6 +36,8 @@ class MQTTBrokerConfig:
 
 @dataclass
 class LatencyMonitoringConfig:
+    """Configuration for latency monitoring."""
+
     enabled: bool = False  # Whether to enable latency monitoring
     request_topic: str = "request"
     response_topic: str = "response"
@@ -42,48 +48,63 @@ class LatencyMonitoringConfig:
 
 @dataclass
 class SubscribeConfig:
-    topics: list
+    """Configuration for MQTT subscriptions."""
+
+    topics: List[str]
     qos: int
 
 
 @dataclass
 class MQTTNodeConfig(UnpackMixin):
+    """Configuration for an MQTT node."""
+
     name: str
     broker_config: MQTTBrokerConfig
-    node_id: str = None
-    subscribe_config: SubscribeConfig = None
-    latency_config: LatencyMonitoringConfig = None
+    node_id: Optional[str] = None
+    subscribe_config: Optional[SubscribeConfig] = None
+    latency_config: Optional[LatencyMonitoringConfig] = None
 
 
 @dataclass
 class MQTTMetricsNodeConfig(UnpackMixin):
+    """Configuration for an MQTT Metrics Node."""
+
     topic_structure: str
     datatype: type = dict
 
 
-def get_nested_value(config, target_key):
-    # Base case: if the target key is in the current dictionary, return its value
+def get_nested_value(config: Dict, target_key: str):
+    """
+    Retrieve a nested value from a configuration dictionary.
+
+    Args:
+        config: The dictionary to search.
+        target_key: The key to find.
+
+    Returns:
+        The value associated with the target key, or None if not found.
+    """
     if target_key in config:
         return config[target_key]
 
-    # Recursive case: check for the target key in any nested dictionaries
     for key, value in config.items():
         if isinstance(value, dict):
             result = get_nested_value(value, target_key)
             if result is not None:
                 return result
 
-    # Return None if the target key is not found
     return None
 
 
-def initialize_logging(logging_config: Union[dict, str]) -> logging.Logger:
+def initialize_logging(logging_config: Union[Dict, str]) -> logging.Logger:
     """
     Initialize the logger.
 
     Args:
-    - logging_config: The logging configuration dictionary or file path.
+        logging_config: The logging configuration dictionary or file path.
 
+    Returns:
+        A logger instance.
     """
     if isinstance(logging_config, str):
         logging_config = load_configs(logging_config)
@@ -92,16 +113,18 @@ def initialize_logging(logging_config: Union[dict, str]) -> logging.Logger:
 
 
 def initialize_config(
-    config: str | Path,
-    secrets: Optional[str | Path] = None,
-) -> dict:
+    config: Union[str, Path],
+    secrets: Optional[Union[str, Path]] = None,
+) -> Dict:
     """
     Initialize the configuration and logger.
 
     Args:
-    - config: The configuration file path or list of configuration file paths.
-    - secrets: The secrets file path. Will default to ".env" if not provided.
+        config: The configuration file path or list of configuration file paths.
+        secrets: The secrets file path. Will default to ".env" if not provided.
 
+    Returns:
+        A dictionary containing node configurations.
     """
     config = load_configs(config, secrets_filepath=secrets)
     config = get_nested_value(config, "mqtt")
@@ -115,14 +138,19 @@ def initialize_config(
         timeout=config["broker"].get("timeout", 5),
         reconnect_attempts=config["broker"].get("reconnect_attempts", 10),
     )
-    latency_config = LatencyMonitoringConfig(**config["node"]["metrics"].get("latency"))
+
+    latency_config = LatencyMonitoringConfig(
+        **config["node"]["metrics"].get("latency", {})
+    )
     subscribe_config = SubscribeConfig(
         topics=config["subscriptions"]["subscribe_topics"],
         qos=config["subscriptions"]["subscribe_qos"],
     )
+
     metrics_node_config = MQTTMetricsNodeConfig(
         topic_structure=config["metrics_node"]["topic_structure"],
     )
+
     node_config = MQTTNodeConfig(
         name=config["node"]["name"],
         broker_config=broker_config,
@@ -131,10 +159,9 @@ def initialize_config(
         latency_config=latency_config,
     )
 
-    # merge metrics_node_config and node_config
     metrics_node_config = {**dict(node_config), **dict(metrics_node_config)}
 
-    return dict(
-        MQTTNode=node_config,
-        MQTTMetricsNode=metrics_node_config,
-    )
+    return {
+        "MQTTNode": node_config,
+        "MQTTMetricsNode": metrics_node_config,
+    }

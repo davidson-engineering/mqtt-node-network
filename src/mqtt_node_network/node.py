@@ -44,7 +44,13 @@ def convert_bytes_to_human_readable(num: float) -> str:
     return f"{num:.2f} {unit}"
 
 
-def extend_or_append(list_topics, topic):
+def extend_or_append(list_topics: List[str], topic: Union[str, Tuple]) -> None:
+    """
+    Recursively extend or append topics to a list.
+
+    :param list_topics: A list of topic strings.
+    :param topic: A topic to be added, which can be a string or tuple.
+    """
     for item in topic:
         if isinstance(item, tuple):
             extend_or_append(list_topics, item)
@@ -52,8 +58,13 @@ def extend_or_append(list_topics, topic):
             list_topics.append(item)
 
 
-def parse_properties_dict(properties: dict) -> Properties:
+def parse_properties_dict(properties: Dict[str, Union[str, int]]) -> Properties:
+    """
+    Convert a dictionary into MQTT Properties.
 
+    :param properties: Dictionary containing properties.
+    :return: MQTT Properties object.
+    """
     publish_properties = Properties(PacketTypes.PUBLISH)
 
     if isinstance(properties, dict):
@@ -71,8 +82,15 @@ def parse_properties_dict(properties: dict) -> Properties:
 
 
 def parse_topic(
-    topic: Union[str, list, tuple], qos: Optional[int | None] = None
-) -> Union[list, tuple]:
+    topic: Union[str, List[str], Tuple[str, ...]], qos: Optional[int] = None
+) -> Union[List[Tuple[str, mqtt.SubscribeOptions]], Tuple[str, mqtt.SubscribeOptions]]:
+    """
+    Parse a topic string, list, or tuple and apply MQTT subscription options.
+
+    :param topic: A single topic or list/tuple of topics.
+    :param qos: Quality of Service level (optional).
+    :return: Parsed topic(s) with subscription options applied.
+    """
     qos = qos or 0
     if isinstance(topic, str):
         return (topic, mqtt.SubscribeOptions(qos))
@@ -88,8 +106,8 @@ def dict_to_user_properties(properties_dict: Dict[str, str]) -> List[Tuple[str, 
     """
     Convert a dictionary to a list of tuples for user properties.
 
-    :param properties_dict: Dictionary containing user properties
-    :return: List of tuples where each tuple is (key, value)
+    :param properties_dict: Dictionary containing user properties.
+    :return: List of tuples where each tuple is (key, value).
     """
     return [(key, value) for key, value in properties_dict.items()]
 
@@ -98,20 +116,27 @@ def user_properties_to_dict(user_properties: List[Tuple[str, str]]) -> Dict[str,
     """
     Convert a list of tuples (user properties) to a dictionary.
 
-    :param user_properties: List of tuples where each tuple is (key, value)
-    :return: Dictionary containing user properties
+    :param user_properties: List of tuples where each tuple is (key, value).
+    :return: Dictionary containing user properties.
     """
     return dict(user_properties)
 
 
 class NodeError(Exception):
-    def __init__(self, message):
+    """
+    Exception raised for errors in the MQTTNode.
+    """
+
+    def __init__(self, message: str):
         self.message = message
         logger.error(self.message)
         super().__init__(self.message)
 
 
 class MQTTNode:
+    """
+    A base class representing an MQTT Node, with integrated Prometheus metrics.
+    """
 
     node_bytes_received_count = Counter(
         "node_bytes_received_total",
@@ -145,28 +170,44 @@ class MQTTNode:
 
     @classmethod
     def from_config_file(
-        cls, config_file: str | Path, secrets_file: Optional[str | Path] = None
-    ):
+        cls,
+        config_file: Union[str, Path],
+        secrets_file: Optional[Union[str, Path]] = None,
+    ) -> MQTTNode:
+        """
+        Instantiate an MQTTNode from a configuration file.
 
+        :param config_file: Path to the configuration file.
+        :param secrets_file: Path to the secrets file (optional).
+        :return: An initialized MQTTNode instance.
+        """
         config = initialize_config(config=config_file, secrets=secrets_file)[
             cls.__name__
         ]
-
         return cls(**config)
 
     def __init__(
         self,
         broker_config: MQTTBrokerConfig,  # type: ignore
-        name,
-        node_id=None,
+        name: str,
+        node_id: Optional[str] = None,
         subscribe_config: SubscribeConfig = None,  # type: ignore
         latency_config: LatencyMonitoringConfig = None,  # type: ignore
     ):
+        """
+        Initialize an MQTTNode instance.
+
+        :param broker_config: The configuration for the MQTT broker.
+        :param name: The name of the node.
+        :param node_id: A unique identifier for the node (optional).
+        :param subscribe_config: Configuration for subscribed topics.
+        :param latency_config: Configuration for latency monitoring.
+        """
         self.name = name
         self.node_type = self.__class__.__name__
         self.node_id = node_id if node_id else self._get_id()
-        self.subscriptions = subscribe_config.topics
-        self.subscribe_qos = subscribe_config.qos
+        self.subscriptions = subscribe_config.topics if subscribe_config else []
+        self.subscribe_qos = subscribe_config.qos if subscribe_config else 0
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -177,7 +218,7 @@ class MQTTNode:
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
-        self._auth: dict = {
+        self._auth: Dict[str, str] = {
             "username": broker_config.username,
             "password": broker_config.password,
         }
@@ -190,6 +231,7 @@ class MQTTNode:
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
+
         # self.client.enable_logger(logger)
 
         # Set latency metrics
