@@ -189,11 +189,7 @@ class MQTTNode:
         # self.client.enable_logger(logger)
 
         # Set latency metrics
-        self.latency_config = (
-            copy.deepcopy(latency_config)
-            if latency_config
-            else LatencyMonitoringConfig()
-        )
+        self.latency_config = copy.deepcopy(latency_config)
         self.latency_config.response_topic = (
             f"{client_id}/{self.latency_config.response_topic}"
         )
