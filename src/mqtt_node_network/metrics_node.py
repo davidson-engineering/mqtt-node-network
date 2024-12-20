@@ -43,7 +43,7 @@ class Metric(MutableMapping):
 
 def parse_topic(
     topic: str, structure: str, field_separator: str = "-"
-) -> tuple[dict, str]:
+) -> dict[str, str]:
     topic_parts = topic.rstrip("/").split("/")
     structure_parts = structure.rstrip("/").split("/")
     len_diff = len(topic_parts) - len(structure_parts)
@@ -76,7 +76,7 @@ def parse_topic(
 
 def parse_payload_to_metric(
     value: Union[int, float, str], topic: str, structure: str
-) -> Metric:
+) -> Union[Metric, dict, None]:
     try:
         parsed_topic = parse_topic(topic, structure)
     except ValueError as e:
@@ -122,12 +122,12 @@ class MQTTMetricsNode(MQTTNode):
     def __init__(
         self,
         name: str,
-        broker_config: "MQTTBrokerConfig",
+        broker_config: MQTTBrokerConfig,  # type: ignore
         topic_structure: str,
         node_id: Optional[str] = None,
         buffer: Optional[Union[list, deque]] = None,
-        subscribe_config: Optional["SubscribeConfig"] = None,
-        latency_config: Optional["LatencyMonitoringConfig"] = None,
+        subscribe_config: Optional[SubscribeConfig] = None,  # type: ignore
+        latency_config: Optional[LatencyMonitoringConfig] = None,  # type: ignore
         datatype: Optional[type] = dict,
     ):
         super().__init__(

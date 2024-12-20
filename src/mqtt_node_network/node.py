@@ -8,12 +8,11 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
-from dataclasses import asdict, dataclass
 import logging
 from pathlib import Path
 import socket
 import threading
-from typing import Dict, List, Mapping, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import time
 import asyncio
 import copy
@@ -71,7 +70,10 @@ def parse_properties_dict(properties: dict) -> Properties:
     return publish_properties
 
 
-def parse_topic(topic: Union[str, list, tuple], qos: int = 0) -> Union[list, tuple]:
+def parse_topic(
+    topic: Union[str, list, tuple], qos: Optional[int | None] = None
+) -> Union[list, tuple]:
+    qos = qos or 0
     if isinstance(topic, str):
         return (topic, mqtt.SubscribeOptions(qos))
     elif isinstance(topic, tuple):
@@ -142,7 +144,9 @@ class MQTTNode:
     )
 
     @classmethod
-    def from_config_file(cls, config_file: str | Path, secrets_file: str | Path = None):
+    def from_config_file(
+        cls, config_file: str | Path, secrets_file: Optional[str | Path] = None
+    ):
 
         config = initialize_config(config=config_file, secrets=secrets_file)[
             cls.__name__
@@ -152,11 +156,11 @@ class MQTTNode:
 
     def __init__(
         self,
-        broker_config: "MQTTBrokerConfig",
+        broker_config: MQTTBrokerConfig,  # type: ignore
         name,
         node_id=None,
-        subscribe_config: "SubscribeConfig" = None,
-        latency_config: "LatencyMonitoringConfig" = None,
+        subscribe_config: SubscribeConfig = None,  # type: ignore
+        latency_config: LatencyMonitoringConfig = None,  # type: ignore
     ):
         self.name = name
         self.node_type = self.__class__.__name__
@@ -222,7 +226,7 @@ class MQTTNode:
         # self.client.on_log = self.on_log
 
         self.is_connected = self.client.is_connected
-        self.loop_forever = self.client.loop_forever
+        # self.loop_forever = self.client.loop_forever
 
         self.restore_subscriptions()
 
@@ -245,7 +249,7 @@ class MQTTNode:
 
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list], qos: int = None):
+    def subscribe(self, topic: Union[str, tuple, list], qos: Optional[int] = None):
         """
         Subscribe to a topic
         :topic: str | tuple | list

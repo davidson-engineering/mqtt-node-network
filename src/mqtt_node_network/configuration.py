@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass
 from logging.config import dictConfig
-from typing import Mapping, Union
+from pathlib import Path
+from typing import Mapping, Optional, Union
 import logging
 from config_loader import load_configs
 
@@ -91,9 +92,9 @@ def initialize_logging(logging_config: Union[dict, str]) -> logging.Logger:
 
 
 def initialize_config(
-    config: str,
-    secrets: str = None,
-) -> tuple[dict, logging.Logger]:
+    config: str | Path,
+    secrets: Optional[str | Path] = None,
+) -> dict:
     """
     Initialize the configuration and logger.
 
