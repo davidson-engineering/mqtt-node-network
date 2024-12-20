@@ -122,12 +122,12 @@ class MQTTMetricsNode(MQTTNode):
     def __init__(
         self,
         name: str,
-        broker_config: MQTTBrokerConfig,
+        broker_config: "MQTTBrokerConfig",
         topic_structure: str,
         node_id: Optional[str] = None,
         buffer: Optional[Union[list, deque]] = None,
-        subscribe_config: Optional[SubscribeConfig] = None,
-        latency_config: Optional[LatencyMonitoringConfig] = None,
+        subscribe_config: Optional["SubscribeConfig"] = None,
+        latency_config: Optional["LatencyMonitoringConfig"] = None,
         datatype: Optional[type] = dict,
     ):
         super().__init__(

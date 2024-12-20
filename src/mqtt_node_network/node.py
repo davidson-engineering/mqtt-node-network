@@ -152,11 +152,11 @@ class MQTTNode:
 
     def __init__(
         self,
-        broker_config: MQTTBrokerConfig,
+        broker_config: "MQTTBrokerConfig",
         name,
         node_id=None,
-        subscribe_config: SubscribeConfig = None,
-        latency_config: LatencyMonitoringConfig = None,
+        subscribe_config: "SubscribeConfig" = None,
+        latency_config: "LatencyMonitoringConfig" = None,
     ):
         self.name = name
         self.node_type = self.__class__.__name__
