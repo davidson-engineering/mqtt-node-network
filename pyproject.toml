@@ -31,7 +31,7 @@ dependencies = [
   "tomli==2.0.1",
   "PyYAML==6.0.1",
   "python-json-logger==2.0.7",
-  "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.1.0",
+  "python-config-loader @ git+https://github.com/davidson-engineering/python-config-loader.git@v0.1.1",
   "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.0",
   "mypy>=1.14.0",
 ]
