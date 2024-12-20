@@ -39,10 +39,5 @@ dependencies = [
 [tool.setuptools.dynamic]
 version = { attr = "mqtt_node_network.__version__" }
 
-[dependency-groups]
-dev = [
-    "pytest>=8.3.4",
-]
-
 [project.optional-dependencies]
-test = ["pytest >= 7.1.1"]
+test = ["pytest >= 7"]
