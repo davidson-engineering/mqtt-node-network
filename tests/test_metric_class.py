@@ -1,4 +1,4 @@
-from mqtt_node_network.client import Metric
+from mqtt_node_network.metrics_node import Metric
 
 
 def test_metric():

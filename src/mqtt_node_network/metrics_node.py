@@ -1,15 +1,14 @@
+from __future__ import annotations
 from collections import deque
 from dataclasses import asdict, dataclass, field
 import json
-from typing import Union
+from typing import Optional, Union
 from collections.abc import MutableMapping
 import time
 import logging
 from prometheus_client import Counter
 
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.node import MQTTBrokerConfig
-
 
 logger = logging.getLogger(__name__)
 
@@ -95,60 +94,56 @@ def parse_payload_to_metric(
     )
 
 
-class MQTTClient(MQTTNode):
+class MQTTMetricsNode(MQTTNode):
 
-    client_bytes_received_count = Counter(
-        "client_bytes_received_total",
-        "Total number of bytes received by a client node",
+    metric_bytes_received_count = Counter(
+        "metric_bytes_received_total",
+        "Total number of bytes received by a metric node",
         labelnames=("measurement", "field"),
     )
-    client_bytes_sent_count = Counter(
-        "client_bytes_sent_total",
-        "Total number of bytes sent by a client node",
-        labelnames=("measurement", "field"),
-    )
-
-    client_messages_received_count = Counter(
-        "client_messages_received_total",
-        "Total number of messages received by a client node",
+    metric_bytes_sent_count = Counter(
+        "metric_bytes_sent_total",
+        "Total number of bytes sent by a metric node",
         labelnames=("measurement", "field"),
     )
 
-    client_messages_sent_count = Counter(
-        "client_messages_sent_total",
-        "Total number of messages sent by a client node",
+    metric_messages_received_count = Counter(
+        "metric_messages_received_total",
+        "Total number of messages received by a metric node",
+        labelnames=("measurement", "field"),
+    )
+
+    metric_messages_sent_count = Counter(
+        "metric_messages_sent_total",
+        "Total number of messages sent by a metric node",
         labelnames=("measurement", "field"),
     )
 
     def __init__(
         self,
+        name: str,
         broker_config: MQTTBrokerConfig,
         topic_structure: str,
-        buffer: Union[list, deque] = None,
-        name=None,
-        node_id="",
-        node_type=None,
-        logger=None,
-        datatype: type = dict,
-        **kwargs,
+        node_id: Optional[str] = None,
+        buffer: Optional[Union[list, deque]] = None,
+        subscribe_config: Optional[SubscribeConfig] = None,
+        latency_config: Optional[LatencyMonitoringConfig] = None,
+        datatype: Optional[type] = dict,
     ):
         super().__init__(
             broker_config,
             name=name,
             node_id=node_id,
-            node_type=node_type,
-            logger=logger,
-            **kwargs,
+            latency_config=latency_config,
+            subscribe_config=subscribe_config,
         )
 
-        if buffer is None:
-            buffer = []
-        self.buffer = buffer
+        self.buffer = buffer if buffer else deque()
         self.datatype = datatype
         self.topic_structure = topic_structure
 
-    def on_message(self, client, userdata, message):
-        super().on_message(client, userdata, message)
+    def on_message(self, metric, userdata, message):
+        super().on_message(metric, userdata, message)
 
         data = message.payload.decode()
         if message.payload is None:
@@ -184,11 +179,11 @@ class MQTTClient(MQTTNode):
         )
         if metric:
             for metric_field in metric["fields"].keys():
-                self.client_messages_received_count.labels(
+                self.metric_messages_received_count.labels(
                     measurement=metric["measurement"],
                     field=metric_field,
                 ).inc()
-                self.client_bytes_received_count.labels(
+                self.metric_bytes_received_count.labels(
                     measurement=metric["measurement"],
                     field=metric_field,
                 ).inc(len(message.payload))

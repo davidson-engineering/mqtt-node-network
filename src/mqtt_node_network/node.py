@@ -8,11 +8,12 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import logging
+from pathlib import Path
 import socket
 import threading
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Mapping, Tuple, Union
 import time
 import asyncio
 import copy
@@ -22,28 +23,9 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter, Gauge
 
+from mqtt_node_network.configuration import initialize_config
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class MQTTBrokerConfig:
-    username: str
-    password: str
-    keepalive: int
-    hostname: str
-    port: int
-    timeout: int
-    reconnect_attempts: int
-
-
-@dataclass
-class LatencyMonitoringConfig:
-    enabled: bool = False  # Whether to enable latency monitoring
-    request_topic: str = "request"
-    response_topic: str = "response"
-    qos: int = 1  # MQTT Quality of Service level for latency monitoring
-    interval: int = 10  # How often to check latency (in seconds)
-    log_enabled: bool = False
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:
@@ -159,21 +141,28 @@ class MQTTNode:
         labelnames=("node_id", "node_name", "node_type", "host"),
     )
 
+    @classmethod
+    def from_config_file(cls, config_file: str | Path, secrets_file: str | Path = None):
+
+        config = initialize_config(config=config_file, secrets=secrets_file)[
+            cls.__name__
+        ]
+
+        return cls(**config)
+
     def __init__(
         self,
         broker_config: MQTTBrokerConfig,
-        name=None,
-        node_id="",
-        node_type=None,
-        logger=None,
-        subscriptions: list = None,
+        name,
+        node_id=None,
+        subscribe_config: SubscribeConfig = None,
         latency_config: LatencyMonitoringConfig = None,
     ):
         self.name = name
-        self.node_type = node_type or self.__class__.__name__
-        self.node_id = node_id or self._get_id()
-        self.client_id = node_id
-        self.subscriptions = subscriptions or []
+        self.node_type = self.__class__.__name__
+        self.node_id = node_id if node_id else self._get_id()
+        self.subscriptions = subscribe_config.topics
+        self.subscribe_qos = subscribe_config.qos
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -197,8 +186,7 @@ class MQTTNode:
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
-        if logger:
-            self.client.enable_logger(logger)
+        # self.client.enable_logger(logger)
 
         # Set latency metrics
         self.latency_config = (
@@ -240,6 +228,8 @@ class MQTTNode:
         self.is_connected = self.client.is_connected
         self.loop_forever = self.client.loop_forever
 
+        self.restore_subscriptions()
+
     def connect(self):
         self.loop_start()
         if self.is_connected() is False:
@@ -259,7 +249,7 @@ class MQTTNode:
 
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list], qos: int = 0):
+    def subscribe(self, topic: Union[str, tuple, list], qos: int = None):
         """
         Subscribe to a topic
         :topic: str | tuple | list
@@ -268,6 +258,7 @@ class MQTTNode:
         """
 
         topic = parse_topic(topic, qos)
+        qos = qos or self.subscribe_qos
 
         result = self.client.subscribe(topic)
 
@@ -281,6 +272,7 @@ class MQTTNode:
                     "node_name": self.name,
                     "node_type": self.node_type,
                     "host": self.hostname,
+                    "qos": qos,
                 },
             )
         else:
@@ -288,6 +280,7 @@ class MQTTNode:
                 f"Subscribed to topic: {topic}",
                 extra={
                     "topic": topic,
+                    "qos": qos,
                     "node_id": self.node_id,
                     "node_name": self.name,
                     "node_type": self.node_type,
@@ -588,5 +581,9 @@ class MQTTNode:
         )
 
     def __del__(self):
-        self.client.disconnect()
-        logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+        try:
+            self.client.disconnect()
+            logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+        except AttributeError:
+            # Nothing to disconnect
+            pass
