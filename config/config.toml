@@ -3,16 +3,21 @@ secrets_filepath = ".env"
 [mqtt.broker]
 username = "${MQTT_BROKER_USERNAME}"
 password = "${MQTT_BROKER_PASSWORD}"
-hostname = "pi-monitor.local"
+hostname = "localhost"
 port = 1_883
 
-[mqtt.node_network]
-enable_prometheus_server = true
-topic_structure = "module/measurement/field*"
-prometheus_port = 8_000
+[mqtt.node]
+name = "mqtt_client_1"
+publish_period = 1
 
-[mqtt.client]
-node_id = "mqtt_client_1"
+[mqtt.subscriptions]
 subscribe_topics = ["topic_0/#"]
 subscribe_qos = 0
-publish_period = 1
+
+[mqtt.metrics_node]
+topic_structure = "module/measurement/field*"
+
+[mqtt.node.metrics.latency]
+enabled = true
+interval = 1
+qos = 1

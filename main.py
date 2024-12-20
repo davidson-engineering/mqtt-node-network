@@ -2,48 +2,37 @@ import time
 import random
 import threading
 
-from mqtt_node_network.initialize import initialize_config
+from mqtt_node_network.configuration import initialize_config
 from mqtt_node_network.node import MQTTNode
-from mqtt_node_network.client import MQTTClient
-
-# Initialize the configuration
-config = initialize_config(
-    config="config/config.toml", logging_config="config/logging.yaml"
-)
-
-# Get the broker configuration from the config dictionary
-# Assign to variables for easier access
-BROKER_CONFIG = config["mqtt"]["broker"]
-SUBSCRIBE_TOPICS = config["mqtt"]["client"]["subscribe_topics"]
-QOS = config["mqtt"]["client"]["subscribe_qos"]
-PUBLISH_PERIOD = 1
+from mqtt_node_network.metrics_node import MQTTClient
 
 
 def publish_forever():
     """Publish random temperature data to the broker every PUBLISH_PERIOD seconds."""
-    client = MQTTNode(
-        node_id="publisher",
-        name="publisher",
-        broker_config=BROKER_CONFIG,
-        latency_config=config["mqtt"]["client"]["metrics"]["latency"],
-    ).connect()
+    # Initialize the configuration
+    config = initialize_config(
+        config="config/node-config.toml", logging_config="config/logging.yaml"
+    )
+
+    client = MQTTNode(node_id="publisher", **config).connect()
 
     while True:
         payload = random.random()
-        client.publish(topic=f"{client.node_id}/temperature/IR/0", payload=payload)
-        time.sleep(PUBLISH_PERIOD)
+        client.publish_every(
+            topic=f"{client.node_id}/temperature/IR/0", payload=payload, interval=1
+        )
 
 
 def subscribe_forever():
     """Subscribe to the broker and print messages to the console."""
+    config = initialize_config(
+        config="config/client-config.toml", logging_config="config/logging.yaml"
+    )
     buffer = []
     client = MQTTClient(
-        node_id="subscriber",
         name="subscriber",
-        broker_config=BROKER_CONFIG,
         buffer=buffer,
-        topic_structure=config["mqtt"]["node_network"]["topic_structure"],
-        latency_config=config["mqtt"]["client"]["metrics"]["latency"],
+        **config,
     ).connect()
     client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
 

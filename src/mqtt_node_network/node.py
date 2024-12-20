@@ -8,11 +8,11 @@
 """a_short_module_description"""
 # ---------------------------------------------------------------------------
 from __future__ import annotations
-from dataclasses import dataclass
 import logging
+from pathlib import Path
 import socket
 import threading
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import time
 import asyncio
 import copy
@@ -22,28 +22,9 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter, Gauge
 
+from mqtt_node_network.configuration import initialize_config
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class MQTTBrokerConfig:
-    username: str
-    password: str
-    keepalive: int
-    hostname: str
-    port: int
-    timeout: int
-    reconnect_attempts: int
-
-
-@dataclass
-class LatencyMonitoringConfig:
-    enabled: bool = False  # Whether to enable latency monitoring
-    request_topic: str = "request"
-    response_topic: str = "response"
-    qos: int = 1  # MQTT Quality of Service level for latency monitoring
-    interval: int = 10  # How often to check latency (in seconds)
-    log_enabled: bool = False
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:
@@ -63,7 +44,13 @@ def convert_bytes_to_human_readable(num: float) -> str:
     return f"{num:.2f} {unit}"
 
 
-def extend_or_append(list_topics, topic):
+def extend_or_append(list_topics: List[str], topic: Union[str, Tuple]) -> None:
+    """
+    Recursively extend or append topics to a list.
+
+    :param list_topics: A list of topic strings.
+    :param topic: A topic to be added, which can be a string or tuple.
+    """
     for item in topic:
         if isinstance(item, tuple):
             extend_or_append(list_topics, item)
@@ -71,8 +58,13 @@ def extend_or_append(list_topics, topic):
             list_topics.append(item)
 
 
-def parse_properties_dict(properties: dict) -> Properties:
+def parse_properties_dict(properties: Dict[str, Union[str, int]]) -> Properties:
+    """
+    Convert a dictionary into MQTT Properties.
 
+    :param properties: Dictionary containing properties.
+    :return: MQTT Properties object.
+    """
     publish_properties = Properties(PacketTypes.PUBLISH)
 
     if isinstance(properties, dict):
@@ -89,7 +81,17 @@ def parse_properties_dict(properties: dict) -> Properties:
     return publish_properties
 
 
-def parse_topic(topic: Union[str, list, tuple], qos: int = 0) -> Union[list, tuple]:
+def parse_topic(
+    topic: Union[str, List[str], Tuple[str, ...]], qos: Optional[int] = None
+) -> Union[List[Tuple[str, mqtt.SubscribeOptions]], Tuple[str, mqtt.SubscribeOptions]]:
+    """
+    Parse a topic string, list, or tuple and apply MQTT subscription options.
+
+    :param topic: A single topic or list/tuple of topics.
+    :param qos: Quality of Service level (optional).
+    :return: Parsed topic(s) with subscription options applied.
+    """
+    qos = qos or 0
     if isinstance(topic, str):
         return (topic, mqtt.SubscribeOptions(qos))
     elif isinstance(topic, tuple):
@@ -104,8 +106,8 @@ def dict_to_user_properties(properties_dict: Dict[str, str]) -> List[Tuple[str, 
     """
     Convert a dictionary to a list of tuples for user properties.
 
-    :param properties_dict: Dictionary containing user properties
-    :return: List of tuples where each tuple is (key, value)
+    :param properties_dict: Dictionary containing user properties.
+    :return: List of tuples where each tuple is (key, value).
     """
     return [(key, value) for key, value in properties_dict.items()]
 
@@ -114,20 +116,27 @@ def user_properties_to_dict(user_properties: List[Tuple[str, str]]) -> Dict[str,
     """
     Convert a list of tuples (user properties) to a dictionary.
 
-    :param user_properties: List of tuples where each tuple is (key, value)
-    :return: Dictionary containing user properties
+    :param user_properties: List of tuples where each tuple is (key, value).
+    :return: Dictionary containing user properties.
     """
     return dict(user_properties)
 
 
 class NodeError(Exception):
-    def __init__(self, message):
+    """
+    Exception raised for errors in the MQTTNode.
+    """
+
+    def __init__(self, message: str):
         self.message = message
         logger.error(self.message)
         super().__init__(self.message)
 
 
 class MQTTNode:
+    """
+    A base class representing an MQTT Node, with integrated Prometheus metrics.
+    """
 
     node_bytes_received_count = Counter(
         "node_bytes_received_total",
@@ -159,21 +168,46 @@ class MQTTNode:
         labelnames=("node_id", "node_name", "node_type", "host"),
     )
 
+    @classmethod
+    def from_config_file(
+        cls,
+        config_file: Union[str, Path],
+        secrets_file: Optional[Union[str, Path]] = None,
+    ) -> MQTTNode:
+        """
+        Instantiate an MQTTNode from a configuration file.
+
+        :param config_file: Path to the configuration file.
+        :param secrets_file: Path to the secrets file (optional).
+        :return: An initialized MQTTNode instance.
+        """
+        config = initialize_config(config=config_file, secrets=secrets_file)[
+            cls.__name__
+        ]
+        return cls(**config)
+
     def __init__(
         self,
-        broker_config: MQTTBrokerConfig,
-        name=None,
-        node_id="",
-        node_type=None,
-        logger=None,
-        subscriptions: list = None,
-        latency_config: LatencyMonitoringConfig = None,
+        broker_config: MQTTBrokerConfig,  # type: ignore
+        name: str,
+        node_id: Optional[str] = None,
+        subscribe_config: SubscribeConfig = None,  # type: ignore
+        latency_config: LatencyMonitoringConfig = None,  # type: ignore
     ):
+        """
+        Initialize an MQTTNode instance.
+
+        :param broker_config: The configuration for the MQTT broker.
+        :param name: The name of the node.
+        :param node_id: A unique identifier for the node (optional).
+        :param subscribe_config: Configuration for subscribed topics.
+        :param latency_config: Configuration for latency monitoring.
+        """
         self.name = name
-        self.node_type = node_type or self.__class__.__name__
-        self.node_id = node_id or self._get_id()
-        self.client_id = node_id
-        self.subscriptions = subscriptions or []
+        self.node_type = self.__class__.__name__
+        self.node_id = node_id if node_id else self._get_id()
+        self.subscriptions = subscribe_config.topics if subscribe_config else []
+        self.subscribe_qos = subscribe_config.qos if subscribe_config else 0
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -184,7 +218,7 @@ class MQTTNode:
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
-        self._auth: dict = {
+        self._auth: Dict[str, str] = {
             "username": broker_config.username,
             "password": broker_config.password,
         }
@@ -197,15 +231,11 @@ class MQTTNode:
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
-        if logger:
-            self.client.enable_logger(logger)
+
+        # self.client.enable_logger(logger)
 
         # Set latency metrics
-        self.latency_config = (
-            copy.deepcopy(latency_config)
-            if latency_config
-            else LatencyMonitoringConfig()
-        )
+        self.latency_config = copy.deepcopy(latency_config)
         self.latency_config.response_topic = (
             f"{client_id}/{self.latency_config.response_topic}"
         )
@@ -238,7 +268,9 @@ class MQTTNode:
         # self.client.on_log = self.on_log
 
         self.is_connected = self.client.is_connected
-        self.loop_forever = self.client.loop_forever
+        # self.loop_forever = self.client.loop_forever
+
+        self.restore_subscriptions()
 
     def connect(self):
         self.loop_start()
@@ -259,7 +291,7 @@ class MQTTNode:
 
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list], qos: int = 0):
+    def subscribe(self, topic: Union[str, tuple, list], qos: Optional[int] = None):
         """
         Subscribe to a topic
         :topic: str | tuple | list
@@ -268,6 +300,7 @@ class MQTTNode:
         """
 
         topic = parse_topic(topic, qos)
+        qos = qos or self.subscribe_qos
 
         result = self.client.subscribe(topic)
 
@@ -281,6 +314,7 @@ class MQTTNode:
                     "node_name": self.name,
                     "node_type": self.node_type,
                     "host": self.hostname,
+                    "qos": qos,
                 },
             )
         else:
@@ -288,6 +322,7 @@ class MQTTNode:
                 f"Subscribed to topic: {topic}",
                 extra={
                     "topic": topic,
+                    "qos": qos,
                     "node_id": self.node_id,
                     "node_name": self.name,
                     "node_type": self.node_type,
@@ -588,5 +623,9 @@ class MQTTNode:
         )
 
     def __del__(self):
-        self.client.disconnect()
-        logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+        try:
+            self.client.disconnect()
+            logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+        except AttributeError:
+            # Nothing to disconnect
+            pass
