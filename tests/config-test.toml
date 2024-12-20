@@ -6,18 +6,18 @@ password = "${MQTT_BROKER_PASSWORD}"
 hostname = "localhost"
 port = 1_883
 
-[mqtt.node_network]
-topic_structure = "module/measurement/field*"
-enable_prometheus_server = false
-prometheus_port = 8_000
-
-[mqtt.client]
-node_id = "mqtt_client_0"
-subscribe_topics = ["topic_0/#"]
-subscribe_qos = 0
+[mqtt.node]
+name = "test-node"
 publish_period = 1
 
-[mqtt.client.metrics.latency]
+[mqtt.subscriptions]
+subscribe_topics = ["topic_0/#"]
+subscribe_qos = 0
+
+[mqtt.metrics_node]
+topic_structure = "module/measurement/field*"
+
+[mqtt.node.metrics.latency]
 enabled = true
 interval = 1
 qos = 1

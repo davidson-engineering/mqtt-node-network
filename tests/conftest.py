@@ -4,16 +4,13 @@ import pytest
 
 @pytest.fixture(scope="session")
 def mqtt_client():
-    from mqtt_node_network.initialize import initialize_config
+    from mqtt_node_network.configuration import initialize_config
     from mqtt_node_network.node import MQTTNode
 
-    config = initialize_config(
-        config="tests/config-test.toml", secrets="tests/test.env"
-    )["mqtt"]
-
-    BROKER_CONFIG = config["broker"]
-
-    client = MQTTNode(broker_config=BROKER_CONFIG).connect()
+    client = MQTTNode.from_config_file(
+        config_file="tests/config-test.toml", secrets_file="tests/test.env"
+    )
+    client.connect()
 
     timeout = 10
 
