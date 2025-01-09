@@ -22,7 +22,10 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Counter, Gauge
 
-from mqtt_node_network.configuration import initialize_config
+from mqtt_node_network.configuration import (
+    LatencyMonitoringConfig,
+    initialize_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -173,18 +176,23 @@ class MQTTNode:
         cls,
         config_file: Union[str, Path],
         secrets_file: Optional[Union[str, Path]] = None,
+        **kwargs,
     ) -> MQTTNode:
         """
         Instantiate an MQTTNode from a configuration file.
 
         :param config_file: Path to the configuration file.
         :param secrets_file: Path to the secrets file (optional).
+        :param kwargs: Additional keyword arguments. See MQTTNode.__init__ for details. These will override the config file.
         :return: An initialized MQTTNode instance.
         """
         config = initialize_config(config=config_file, secrets=secrets_file)[
             cls.__name__
         ]
-        return cls(**config)
+        # Combine the configuration from the file with any additional keyword arguments
+        # The keyword arguments will override the configuration file
+        combined_args = {**config, **kwargs}
+        return cls(**combined_args)
 
     def __init__(
         self,
@@ -235,7 +243,7 @@ class MQTTNode:
         # self.client.enable_logger(logger)
 
         # Set latency metrics
-        self.latency_config = copy.deepcopy(latency_config)
+        self.latency_config = copy.deepcopy(latency_config) or LatencyMonitoringConfig()
         self.latency_config.response_topic = (
             f"{client_id}/{self.latency_config.response_topic}"
         )
@@ -252,7 +260,7 @@ class MQTTNode:
                 self.latency_config.response_topic, self._update_latency_metric
             )
             self.client.message_callback_add(
-                self.latency_config.request_topic, self._send_response
+                self.latency_config.request_topic, self._send_latency_response
             )
 
         # Set client callbacks
@@ -438,7 +446,7 @@ class MQTTNode:
         # Periodically send ping and publish latency
         def periodic_request():
             while True:
-                self._send_request()
+                self._send_latency_request()
                 time.sleep(self.latency_config.interval)
 
         latency_thread = threading.Thread(target=periodic_request)
@@ -468,7 +476,17 @@ class MQTTNode:
                 "host": self.hostname,
             },
         )
-        self.restore_subscriptions()
+        if not flags.session_present:
+            logger.debug(
+                "No session present. Restoring subscriptions ...",
+                extra={
+                    "node_id": self.node_id,
+                    "node_name": self.name,
+                    "node_type": self.node_type,
+                    "host": self.hostname,
+                },
+            )
+            self.restore_subscriptions()
 
     def on_connect_fail(self, client, userdata):
         logger.error(
@@ -564,7 +582,7 @@ class MQTTNode:
     # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
     #  self.logger.info("Unsubscribed from topic")
 
-    def message_callback_add(self, topic, callback):
+    def message_callback_add(self, topic: str, callback: callable):
         """
         Add a callback to a topic. When a message is received on the topic, the callback will be called.
         The callback should take the form of a function that accepts three arguments: client, userdata, message.
@@ -572,11 +590,27 @@ class MQTTNode:
         :topic: str - The topic to add the callback to
         :callback: function - The function to be called
         """
+        if not callable(callback):
+            raise NodeError("Callback must be a function")
+        if not isinstance(topic, str):
+            raise NodeError("Topic must be a string")
+        if not topic in self.subscriptions:
+            logger.warning(
+                f"Topic {topic} not in subscriptions. Adding topic to subscriptions.",
+                extra={
+                    "node_id": self.node_id,
+                    "node_name": self.name,
+                    "node_type": self.node_type,
+                    "host": self.hostname,
+                    "topic": topic,
+                },
+            )
+            self.subscribe(topic)
         self.client.message_callback_add(topic, callback)
-        logger.info(
-            f"Added callback to topic: {topic}",
-            extra={"topic": topic, "callback": callback},
-        )
+        # logger.info(
+        #     f"Added callback to topic: {topic}",
+        #     extra={"topic": topic, "callback": callback.__name__},
+        # )
 
     def on_log(self, client, userdata, level, buf):
         logger.debug(
@@ -593,7 +627,7 @@ class MQTTNode:
         # Return a unique id for each node
         return f"{self.node_type}_{time.time_ns()}"
 
-    def _send_request(self):
+    def _send_latency_request(self):
         # Send a ping message and attach the time sent as a user property
         properties = Properties(PacketTypes.PUBLISH)
         properties.ResponseTopic = self.latency_config.response_topic
@@ -608,7 +642,7 @@ class MQTTNode:
             properties=properties,
         )
 
-    def _send_response(self, client, userdata, message):
+    def _send_latency_response(self, client, userdata, message):
         # Send a response message with the same properties as the request
         properties = Properties(PacketTypes.PUBLISH)
         properties.UserProperty = message.properties.UserProperty
