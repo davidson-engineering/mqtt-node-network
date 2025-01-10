@@ -51,8 +51,8 @@ loggers:
       - mqtt_node_network.info.file
     propagate: no
 
-  root:
-    level: DEBUG
-    handlers:
-      - console
-    propagate: no
+  # root:
+  #   level: DEBUG
+  #   handlers:
+  #     - console
+  #   propagate: no
