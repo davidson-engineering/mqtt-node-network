@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 import socket
 import threading
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, NoReturn, Optional, Tuple, Union
 import time
 import asyncio
 import copy
@@ -20,11 +20,35 @@ import copy
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
+from paho.mqtt.enums import MQTTErrorCode
 from prometheus_client import Counter, Gauge
 
-from mqtt_node_network.configuration import initialize_config
+from mqtt_node_network.configuration import (
+    LatencyMonitoringConfig,
+    initialize_config,
+)
 
+
+class NodeLoggingAdapter(logging.LoggerAdapter):
+    def process(self, msg, kwargs):
+        extra = self.extra.copy()
+        if "extra" in kwargs:
+            extra.update(kwargs["extra"])
+        kwargs["extra"] = extra
+        return msg, kwargs
+
+
+# Initialize your logger and adapter
 logger = logging.getLogger(__name__)
+node_logger = NodeLoggingAdapter(
+    logger,
+    {
+        "node_id": None,
+        "node_name": None,
+        "node_type": None,
+        "host": None,
+    },
+)
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:
@@ -82,7 +106,9 @@ def parse_properties_dict(properties: Dict[str, Union[str, int]]) -> Properties:
 
 
 def parse_topic(
-    topic: Union[str, List[str], Tuple[str, ...]], qos: Optional[int] = None
+    topic: Union[str, List[str], Tuple[str, ...]],
+    qos: Optional[int] = None,
+    options: mqtt.SubscribeOptions = None,
 ) -> Union[List[Tuple[str, mqtt.SubscribeOptions]], Tuple[str, mqtt.SubscribeOptions]]:
     """
     Parse a topic string, list, or tuple and apply MQTT subscription options.
@@ -92,12 +118,18 @@ def parse_topic(
     :return: Parsed topic(s) with subscription options applied.
     """
     qos = qos or 0
+    options = options or mqtt.SubscribeOptions(qos)
+    if options.QoS != qos:
+        options.QoS = qos
+        logger.warning(
+            f"Overriding QoS value in options with value {qos}",
+        )
     if isinstance(topic, str):
-        return (topic, mqtt.SubscribeOptions(qos))
+        return (topic, options)
     elif isinstance(topic, tuple):
-        return (topic[0], mqtt.SubscribeOptions(qos))
+        return (topic[0], options)
     elif isinstance(topic, list):
-        return [(topic_, mqtt.SubscribeOptions(qos)) for topic_ in topic]
+        return [(topic_, options) for topic_ in topic]
     else:
         raise ValueError("Topic must be a string, tuple or list")
 
@@ -173,18 +205,23 @@ class MQTTNode:
         cls,
         config_file: Union[str, Path],
         secrets_file: Optional[Union[str, Path]] = None,
+        **kwargs,
     ) -> MQTTNode:
         """
         Instantiate an MQTTNode from a configuration file.
 
         :param config_file: Path to the configuration file.
         :param secrets_file: Path to the secrets file (optional).
+        :param kwargs: Additional keyword arguments. See MQTTNode.__init__ for details. These will override the config file.
         :return: An initialized MQTTNode instance.
         """
         config = initialize_config(config=config_file, secrets=secrets_file)[
             cls.__name__
         ]
-        return cls(**config)
+        # Combine the configuration from the file with any additional keyword arguments
+        # The keyword arguments will override the configuration file
+        combined_args = {**config, **kwargs}
+        return cls(**combined_args)
 
     def __init__(
         self,
@@ -235,7 +272,9 @@ class MQTTNode:
         # self.client.enable_logger(logger)
 
         # Set latency metrics
-        self.latency_config = copy.deepcopy(latency_config)
+        self._latency_thread = None
+        self._stop_event = threading.Event()
+        self.latency_config = copy.deepcopy(latency_config) or LatencyMonitoringConfig()
         self.latency_config.response_topic = (
             f"{client_id}/{self.latency_config.response_topic}"
         )
@@ -252,11 +291,11 @@ class MQTTNode:
                 self.latency_config.response_topic, self._update_latency_metric
             )
             self.client.message_callback_add(
-                self.latency_config.request_topic, self._send_response
+                self.latency_config.request_topic, self._send_latency_response
             )
 
         # Set client callbacks
-        # self.client.on_pre_connect = self.on_pre_connect
+        self.client.on_pre_connect = self.on_pre_connect
         self.client.on_connect = self.on_connect
         self.client.on_connect_fail = self.on_connect_fail
         self.client.on_message = self.on_message
@@ -270,28 +309,36 @@ class MQTTNode:
         self.is_connected = self.client.is_connected
         # self.loop_forever = self.client.loop_forever
 
+        self.logger = NodeLoggingAdapter(
+            logger,
+            {
+                "node_id": self.node_id,
+                "node_name": self.name,
+                "node_type": self.node_type,
+                "host": self.hostname,
+            },
+        )
+
         self.restore_subscriptions()
 
     def connect(self):
-        self.loop_start()
         if self.is_connected() is False:
-            if self.client.connect(self.hostname, self.port, self.keepalive) != 0:
-                logger.warning(
-                    f"Connection attempt to {self.hostname}:{self.port} failed",
-                    extra={
-                        "node_id": self.node_id,
-                        "node_name": self.name,
-                        "node_type": self.node_type,
-                        "host": self.hostname,
-                    },
+            error_code = self.client.connect(self.hostname, self.port, self.keepalive)
+            if error_code != 0:
+                self.logger.warning(
+                    f"Connection attempt to {self.hostname}:{self.port} failed"
                 )
                 return self
             self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
         # self.ensure_connection()
-
         return self
 
-    def subscribe(self, topic: Union[str, tuple, list], qos: Optional[int] = None):
+    def subscribe(
+        self,
+        topic: Union[str, tuple, list],
+        qos: Optional[int] = None,
+        options: mqtt.SubscribeOptions = None,
+    ):
         """
         Subscribe to a topic
         :topic: str | tuple | list
@@ -299,34 +346,25 @@ class MQTTNode:
 
         """
 
-        topic = parse_topic(topic, qos)
-        qos = qos or self.subscribe_qos
+        topic = parse_topic(topic, qos, options)
 
         result = self.client.subscribe(topic)
 
         if result[0] != 0:
             error_string = mqtt.error_string(result[0])
-            logger.error(
+            self.logger.error(
                 f"{error_string}, failed to subscribe to topic: {topic}",
                 extra={
                     "error_code": error_string,
-                    "node_id": self.node_id,
-                    "node_name": self.name,
-                    "node_type": self.node_type,
-                    "host": self.hostname,
                     "qos": qos,
                 },
             )
         else:
-            logger.info(
+            self.logger.info(
                 f"Subscribed to topic: {topic}",
                 extra={
                     "topic": topic,
                     "qos": qos,
-                    "node_id": self.node_id,
-                    "node_name": self.name,
-                    "node_type": self.node_type,
-                    "host": self.hostname,
                 },
             )
 
@@ -372,6 +410,10 @@ class MQTTNode:
             self.subscribe(topic, qos=qos)
 
     def ensure_connection(self):
+        """
+        Ensure that the client is connected to the broker.
+        Blocking function that will attempt to reconnect if the client is not connected.
+        """
         if self.is_connected() is True:
             return
         reconnects = 1
@@ -379,24 +421,12 @@ class MQTTNode:
             try:
                 self.client.reconnect()
             except (ConnectionRefusedError, ValueError):
-                logger.error(
+                self.logger.error(
                     f"Failed to reconnect to broker at {self.hostname}:{self.port}",
-                    extra={
-                        "node_id": self.node_id,
-                        "node_name": self.name,
-                        "node_type": self.node_type,
-                        "host": self.hostname,
-                    },
                 )
             reconnects += 1
-            logger.info(
+            self.logger.info(
                 f"Retry attempt #{reconnects} in {self.timeout}s",
-                extra={
-                    "node_id": self.node_id,
-                    "node_name": self.name,
-                    "node_type": self.node_type,
-                    "host": self.hostname,
-                },
             )
             time.sleep(self.timeout)
 
@@ -408,7 +438,19 @@ class MQTTNode:
 
     def publish_every(
         self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
-    ):
+    ) -> NoReturn:
+        """
+        Publish a message every interval seconds.
+
+        This is a blocking function, and will run indefinitely.
+        :topic: str - The topic to publish to
+        :payload_func: function - A function that returns the payload to publish
+        :qos: int - The Quality of Service level
+        :retain: bool - Whether to retain the message
+        :properties: dict - MQTT properties
+        :interval: int - The interval in seconds
+        """
+
         while True:
             payload = payload_func()
             self.publish(topic, payload, qos, retain, properties)
@@ -416,82 +458,145 @@ class MQTTNode:
 
     async def publish_every_async(
         self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
-    ):
+    ) -> NoReturn:
         while True:
             payload = payload_func()
             self.publish(topic, payload, qos, retain, properties)
             await asyncio.sleep(interval)
 
-    def loop_forever(self):
-        self.client.loop_forever()
+    def check_loop_running(self):
+        if self.client._thread is not None and self.client._thread.is_alive():
+            return True
+        return False
+
+    def loop_forever(self, timeout: int = 1, reconnect_delay: int = 5) -> NoReturn:
+        """
+        Continuously checks connection status, keeps the client alive, and handles reconnections.
+        If latency monitoring is enabled, starts periodic latency checks.
+
+        Args:
+            timeout (int): Time (in seconds) to wait between connection checks.
+            reconnect_delay (int): Time (in seconds) to wait before attempting a reconnection.
+        """
         if self.latency_config.enabled:
             self.start_periodic_latency_check()
+
+        self.logger.info("Entering main loop with reconnection handling.")
+        self.ensure_connection()
+        try:
+            while True:
+                if self.is_connected():
+                    self.logger.debug("Connection active. Maintaining connection.")
+                    time.sleep(timeout)
+                else:
+                    self.logger.warning("Connection lost. Attempting to reconnect...")
+                    try:
+                        self.connect()
+                        self.ensure_connection()
+                        self.logger.info("Reconnected successfully.")
+                    except Exception as e:
+                        self.logger.error(f"Reconnection failed: {e}")
+                        self.logger.info(f"Retrying in {reconnect_delay} seconds...")
+                        time.sleep(reconnect_delay)
+        except KeyboardInterrupt:
+            self.logger.info("Loop interrupted by user. Stopping...")
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred in the main loop: {e}")
+        finally:
+            self.__del__()
+
+    def loop_start(self) -> MQTTNode:
+
+        error_code = self.client.loop_start()
+
+        if error_code != 0:
+            self.logger.error(
+                f"Failed to start loop: {mqtt.error_string(error_code)}",
+            )
+        if self.latency_config.enabled:
+            self.start_periodic_latency_check()
+
         return self
 
-    def loop_start(self):
-        self.client.loop_start()
-        if self.latency_config.enabled:
-            self.start_periodic_latency_check()
+    def loop_stop(self) -> MQTTNode:
+        error_code = self.client.loop_stop()
+        if error_code != 0:
+            self.logger.error(
+                f"Failed to stop loop: {mqtt.error_string(error_code)}",
+            )
         return self
 
     def start_periodic_latency_check(self):
         # Periodically send ping and publish latency
-        def periodic_request():
-            while True:
-                self._send_request()
+        if self._latency_thread and self._latency_thread.is_alive():
+            self.logger.warning(
+                f"Thread '{self.node_id}-latency_thread' already exists"
+            )
+            return
+
+        def periodic_request() -> NoReturn:
+            while not self._stop_event.is_set():
+                try:
+                    self._send_latency_request()
+                except Exception as e:
+                    self.logger.error(f"Error during latency request: {e}")
                 time.sleep(self.latency_config.interval)
 
-        latency_thread = threading.Thread(target=periodic_request)
-        latency_thread.start()
+        # Start a new thread
+        self.logger.info(
+            "Starting latency monitoring thread",
+            extra={
+                "thread_name": f"{self.node_id}-latency_thread",
+            },
+        )
+        self._stop_event.clear()
+        self._latency_thread = threading.Thread(
+            target=periodic_request,
+            name=f"{self.node_id}-latency_thread",
+            daemon=True,  # Optional: Make thread a daemon so it stops with the main program
+        )
+        self._latency_thread.start()
+
+    def stop_periodic_latency_check(self):
+        # Stop the periodic latency check thread
+        if self._latency_thread and self._latency_thread.is_alive():
+            self.logger.info(
+                "Stopping latency monitoring thread",
+                extra={
+                    "thread_name": f"{self.node_id}-latency_thread",
+                },
+            )
+            self._stop_event.set()
+            self._latency_thread.join()
 
     # Callbacks
     # ***************************************************************************
 
-    # def on_pre_connect(self, client, userdata):
-    # logger.info(
-    #     f"Connecting to broker at {client.host}:{client.port}",
-    #     extra={
-    #         "node_id": self.node_id,
-    #         "node_name": self.name,
-    #         "node_type": self.node_type,
-    #         "host": self.hostname,
-    #     },
-    # )
+    def on_pre_connect(self, client, userdata):
+        if not self.check_loop_running():
+            self.loop_start()
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        logger.info(
+
+        self.logger.info(
             f"Connected to broker at {client.host}:{client.port}",
-            extra={
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
-            },
         )
-        self.restore_subscriptions()
+        if not flags.session_present:
+            logger.debug(
+                "No session present. Restoring subscriptions ...",
+            )
+            self.restore_subscriptions()
 
     def on_connect_fail(self, client, userdata):
-        logger.error(
+        self.logger.error(
             f"Failed to connect to broker at {client.host}:{client.port}",
-            extra={
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
-            },
         )
 
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        logger.info(
+        self.logger.info(
             f"Disconnected with result code: {reason_code}",
-            extra={
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
-            },
         )
 
     def on_message(self, client, userdata, message):
@@ -504,15 +609,11 @@ class MQTTNode:
             self.node_id, self.name, self.node_type, self.hostname
         ).inc(len(message.payload))
 
-        logger.info(
+        self.logger.info(
             f"Received message on topic '{message.topic}': {shorten_data(message.payload.decode())}",
             extra={
                 "topic": message.topic,
                 "qos": message.qos,
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
             },
         )
 
@@ -520,15 +621,7 @@ class MQTTNode:
         self.node_messages_sent_count.labels(
             self.node_id, self.name, self.node_type, self.hostname
         ).inc()
-        logger.debug(
-            f"Published message #{mid}",
-            extra={
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
-            },
-        )
+        self.logger.debug(f"Published message #{mid}")
 
     def _update_latency_metric(self, client, userdata, message):
         # Calculate the latency between clients
@@ -548,15 +641,7 @@ class MQTTNode:
 
         if self.latency_config.log_enabled:
             # Log the latency
-            logger.info(
-                f"Client to client latency {latency:.4f} ms",
-                extra={
-                    "node_id": self.node_id,
-                    "node_name": self.name,
-                    "node_type": self.node_type,
-                    "host": self.hostname,
-                },
-            )
+            self.logger.info(f"Client to client latency {latency:.4f} ms")
 
     # def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
     #  self.logger.info("Subscribed to topic")
@@ -564,7 +649,7 @@ class MQTTNode:
     # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
     #  self.logger.info("Unsubscribed from topic")
 
-    def message_callback_add(self, topic, callback):
+    def message_callback_add(self, topic: str, callback: callable):
         """
         Add a callback to a topic. When a message is received on the topic, the callback will be called.
         The callback should take the form of a function that accepts three arguments: client, userdata, message.
@@ -572,28 +657,32 @@ class MQTTNode:
         :topic: str - The topic to add the callback to
         :callback: function - The function to be called
         """
+        if not callable(callback):
+            raise NodeError("Callback must be a function")
+        if not isinstance(topic, str):
+            raise NodeError("Topic must be a string")
+        if not topic in self.subscriptions:
+            self.logger.warning(
+                f"Topic {topic} not in subscriptions. Adding topic to subscriptions.",
+                extra={
+                    "topic": topic,
+                },
+            )
+            self.subscribe(topic)
         self.client.message_callback_add(topic, callback)
-        logger.info(
-            f"Added callback to topic: {topic}",
-            extra={"topic": topic, "callback": callback},
-        )
+        # logger.info(
+        #     f"Added callback to topic: {topic}",
+        #     extra={"topic": topic, "callback": callback.__name__},
+        # )
 
     def on_log(self, client, userdata, level, buf):
-        logger.debug(
-            "Log: {}".format(buf),
-            extra={
-                "node_id": self.node_id,
-                "node_name": self.name,
-                "node_type": self.node_type,
-                "host": self.hostname,
-            },
-        )
+        self.logger.debug("Log: {}".format(buf))
 
     def _get_id(self):
         # Return a unique id for each node
         return f"{self.node_type}_{time.time_ns()}"
 
-    def _send_request(self):
+    def _send_latency_request(self):
         # Send a ping message and attach the time sent as a user property
         properties = Properties(PacketTypes.PUBLISH)
         properties.ResponseTopic = self.latency_config.response_topic
@@ -608,7 +697,7 @@ class MQTTNode:
             properties=properties,
         )
 
-    def _send_response(self, client, userdata, message):
+    def _send_latency_response(self, client, userdata, message):
         # Send a response message with the same properties as the request
         properties = Properties(PacketTypes.PUBLISH)
         properties.UserProperty = message.properties.UserProperty
@@ -624,8 +713,9 @@ class MQTTNode:
 
     def __del__(self):
         try:
+            self.stop_periodic_latency_check()
             self.client.disconnect()
-            logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+            self.logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
         except AttributeError:
             # Nothing to disconnect
             pass
