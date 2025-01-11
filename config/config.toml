@@ -4,9 +4,15 @@ secrets_filepath = ".env"
 username = "${MQTT_BROKER_USERNAME}"
 password = "${MQTT_BROKER_PASSWORD}"
 hostname = "${MQTT_BROKER_HOSTNAME}"
-port = 1_883
+port = 1_893
 timeout = 5
 reconnect_attempts = 5
+clean_session = 3                    # 0 - false, 1 - true, 3 - first-time-only
+
+[mqtt.packet_properties]
+message_expiry_interval = 0
+session_expiry_interval = 0
+retain = false
 
 [mqtt.node]
 name = "mqtt_client_1"

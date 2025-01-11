@@ -3,6 +3,10 @@ from logging.config import dictConfig
 from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Union
 import logging
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.properties import Properties
+from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY
+
 from config_loader import load_configs
 
 
@@ -32,6 +36,68 @@ class MQTTBrokerConfig:
     port: int
     timeout: int
     reconnect_attempts: int
+    clean_session: bool = MQTT_CLEAN_START_FIRST_ONLY
+
+
+class MQTTPacketProperties:
+    """Properties for MQTT Packets"""
+
+    _packet_type = None
+
+    # Properties are parsed to an paho.mqtt.properties.Properties object
+    def validate_properties(self):
+        raise NotImplementedError(
+            "validate_properties must be implemented in child class"
+        )
+
+    def _build_packet(self):
+        return Properties(self._packet_type)
+
+
+class MQTTConnectProperties(MQTTPacketProperties):
+    """Properties for MQTT CONNECT Packet"""
+
+    _packet_type = PacketTypes.CONNECT
+
+    def __init__(self, session_expiry_interval=0):
+        self.session_expiry_interval = session_expiry_interval
+
+    def validate_properties(self):
+        if self.session_expiry_interval < 0:
+            raise ValueError(
+                "Session expiry interval must be greater than or equal to 0"
+            )
+
+    def build_properties(self):
+        properties = self._build_packet()
+        properties.SessionExpiryInterval = self.session_expiry_interval
+
+        return properties
+
+
+class MQTTPublishProperties(MQTTPacketProperties):
+    """Properties for MQTT PUBLISH Packet"""
+
+    _packet_type = PacketTypes.PUBLISH
+
+    def __init__(self, message_expiry_interval=0, retain=False):
+        self.message_expiry_interval = message_expiry_interval
+        self.retain_flag = retain
+
+    def validate_properties(self):
+        if self.message_expiry_interval < 0:
+            raise ValueError(
+                "Message expiry interval must be greater than or equal to 0"
+            )
+        if not isinstance(self.retain_flag, bool):
+            raise ValueError("Retain flag must be a boolean")
+
+    def build_properties(self):
+        properties = self._build_packet()
+        properties.MessageExpiryInterval = self.message_expiry_interval
+        properties.Retain = self.retain_flag
+
+        return properties
 
 
 @dataclass
@@ -51,7 +117,7 @@ class SubscribeConfig:
     """Configuration for MQTT subscriptions."""
 
     topics: List[str]
-    qos: int
+    qos: int = 0
 
 
 @dataclass
@@ -63,6 +129,7 @@ class MQTTNodeConfig(UnpackMixin):
     node_id: Optional[str] = None
     subscribe_config: Optional[SubscribeConfig] = None
     latency_config: Optional[LatencyMonitoringConfig] = None
+    properties: dict[str, MQTTPacketProperties] = None
 
 
 @dataclass
@@ -137,8 +204,24 @@ def initialize_config(
         keepalive=config["broker"].get("keepalive", 60),
         timeout=config["broker"].get("timeout", 5),
         reconnect_attempts=config["broker"].get("reconnect_attempts", 10),
+        clean_session=config["broker"].get(
+            "clean_session", MQTT_CLEAN_START_FIRST_ONLY
+        ),
     )
 
+    properties = {
+        PacketTypes.CONNECT: MQTTConnectProperties(
+            session_expiry_interval=config["packet_properties"].get(
+                "session_expiry_interval", 0
+            ),
+        ),
+        PacketTypes.PUBLISH: MQTTPublishProperties(
+            message_expiry_interval=config["packet_properties"].get(
+                "message_expiry_interval", 0
+            ),
+            retain=config["packet_properties"].get("retain", False),
+        ),
+    }
     latency_config = LatencyMonitoringConfig(
         **config["node"]["metrics"].get("latency", {})
     )
@@ -154,6 +237,7 @@ def initialize_config(
     node_config = MQTTNodeConfig(
         name=config["node"]["name"],
         broker_config=broker_config,
+        properties=properties,
         node_id=config["node"].get("node_id", None),
         subscribe_config=subscribe_config,
         latency_config=latency_config,
