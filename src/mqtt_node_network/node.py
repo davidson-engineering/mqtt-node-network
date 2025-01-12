@@ -40,15 +40,15 @@ class NodeLoggingAdapter(logging.LoggerAdapter):
 
 # Initialize your logger and adapter
 logger = logging.getLogger(__name__)
-node_logger = NodeLoggingAdapter(
-    logger,
-    {
-        "node_id": None,
-        "node_name": None,
-        "node_type": None,
-        "host": None,
-    },
-)
+# node_logger = NodeLoggingAdapter(
+#     logger,
+#     {
+#         "node_id": None,
+#         "node_name": None,
+#         "node_type": None,
+#         "host": None,
+#     },
+# )
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:

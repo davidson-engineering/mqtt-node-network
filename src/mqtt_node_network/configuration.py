@@ -22,7 +22,7 @@ class UnpackMixin(Mapping):
 
 
 @dataclass
-class MQTTBrokerConfig:
+class MQTTBrokerConfig(UnpackMixin):
     """Configuration for connecting to an MQTT broker."""
 
     username: str

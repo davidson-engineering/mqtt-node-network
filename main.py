@@ -116,7 +116,7 @@ def create_node_swarm(num_nodes):
 
 
 if __name__ == "__main__":
-    publish_forever()
-    # create_loop_forever_node()
+    # publish_forever()
+    create_loop_forever_node()
     # publisher_subscriber_threaded()
     # create_node_swarm(10)
