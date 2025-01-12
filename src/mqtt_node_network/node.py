@@ -20,13 +20,9 @@ import copy
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
-from paho.mqtt.enums import MQTTErrorCode
 from prometheus_client import Counter, Gauge
 
-from mqtt_node_network.configuration import (
-    LatencyMonitoringConfig,
-    initialize_config,
-)
+from mqtt_node_network.configuration import initialize_config, LatencyMonitoringConfig
 
 
 class NodeLoggingAdapter(logging.LoggerAdapter):
@@ -40,15 +36,6 @@ class NodeLoggingAdapter(logging.LoggerAdapter):
 
 # Initialize your logger and adapter
 logger = logging.getLogger(__name__)
-# node_logger = NodeLoggingAdapter(
-#     logger,
-#     {
-#         "node_id": None,
-#         "node_name": None,
-#         "node_type": None,
-#         "host": None,
-#     },
-# )
 
 
 def shorten_data(data: str, max_length: int = 75) -> str:
@@ -230,6 +217,7 @@ class MQTTNode:
         node_id: Optional[str] = None,
         subscribe_config: SubscribeConfig = None,  # type: ignore
         latency_config: LatencyMonitoringConfig = None,  # type: ignore
+        properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
     ):
         """
         Initialize an MQTTNode instance.
@@ -252,6 +240,9 @@ class MQTTNode:
         self.keepalive: int = broker_config.keepalive
         self.timeout: int = broker_config.timeout
         self.reconnect_attempts: int = broker_config.reconnect_attempts
+        self.clean_session: bool = broker_config.clean_session
+
+        self.properties = properties
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
@@ -321,17 +312,30 @@ class MQTTNode:
 
         self.restore_subscriptions()
 
-    def connect(self):
+    def connect(
+        self,
+        properties: Optional[Properties] = None,
+        ensure_connected: bool = True,
+    ) -> int:
+        if properties is None:
+            properties = self.properties[PacketTypes.CONNECT].build_properties()
         if self.is_connected() is False:
-            error_code = self.client.connect(self.hostname, self.port, self.keepalive)
+            error_code = self.client.connect(
+                host=self.hostname,
+                port=self.port,
+                keepalive=self.keepalive,
+                clean_start=self.clean_session,
+                properties=properties,
+            )
             if error_code != 0:
                 self.logger.warning(
                     f"Connection attempt to {self.hostname}:{self.port} failed"
                 )
-                return self
+                return error_code
             self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
-        # self.ensure_connection()
-        return self
+        if ensure_connected:
+            self.ensure_connection()
+        return 0
 
     def subscribe(
         self,
@@ -360,7 +364,7 @@ class MQTTNode:
                 },
             )
         else:
-            self.logger.info(
+            self.logger.debug(
                 f"Subscribed to topic: {topic}",
                 extra={
                     "topic": topic,
@@ -405,7 +409,7 @@ class MQTTNode:
         elif isinstance(topic, str):
             append_topic(topic)
 
-    def restore_subscriptions(self, qos: int = 1):
+    def restore_subscriptions(self, qos: int = 0):
         for topic in self.subscriptions:
             self.subscribe(topic, qos=qos)
 
@@ -431,7 +435,7 @@ class MQTTNode:
             time.sleep(self.timeout)
 
     def publish(self, topic, payload, qos=0, retain=False, properties=None):
-        self.ensure_connection()
+        # self.ensure_connection()
         if properties:
             properties = parse_properties_dict(properties)
         return self.client.publish(topic, payload, qos, retain, properties=properties)
@@ -578,7 +582,7 @@ class MQTTNode:
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
 
-        self.logger.info(
+        self.logger.debug(
             f"Connected to broker at {client.host}:{client.port}",
         )
         if not flags.session_present:
@@ -595,7 +599,7 @@ class MQTTNode:
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        self.logger.info(
+        self.logger.debug(
             f"Disconnected with result code: {reason_code}",
         )
 
@@ -668,7 +672,7 @@ class MQTTNode:
                     "topic": topic,
                 },
             )
-            self.subscribe(topic)
+            self.subscribe(topic, qos=self.subscribe_qos)
         self.client.message_callback_add(topic, callback)
         # logger.info(
         #     f"Added callback to topic: {topic}",

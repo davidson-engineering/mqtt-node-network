@@ -1,3 +1,4 @@
+import sys
 import time
 import random
 import threading
@@ -115,8 +116,23 @@ def create_node_swarm(num_nodes):
         thread.join()
 
 
+def simple_create_node(config_file) -> MQTTNode:
+    node = MQTTNode.from_config_file(name=None, config_file=config_file)
+    response = node.connect()
+    if not response:
+        return node
+
+
 if __name__ == "__main__":
-    # publish_forever()
-    create_loop_forever_node()
-    # publisher_subscriber_threaded()
-    # create_node_swarm(10)
+    try:
+        node = simple_create_node("config/config.toml")
+        # publish_forever()
+        # create_loop_forever_node()
+        # publisher_subscriber_threaded()
+        # create_node_swarm(10)
+        node.loop_forever(timeout=10)
+    except Exception as e:
+        logger.error(f"Error: {e}")
+    except KeyboardInterrupt:
+        logger.info("Exiting")
+        sys.exit(0)
