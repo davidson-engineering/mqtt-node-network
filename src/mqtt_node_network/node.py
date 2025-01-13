@@ -18,8 +18,10 @@ import asyncio
 import copy
 
 import paho.mqtt.client as mqtt
+from paho.mqtt.enums import MQTTErrorCode
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
+from paho.mqtt.subscribeoptions import SubscribeOptions
 from prometheus_client import Counter, Gauge
 
 from mqtt_node_network.configuration import initialize_config, LatencyMonitoringConfig
@@ -104,9 +106,8 @@ def parse_topic(
     :param qos: Quality of Service level (optional).
     :return: Parsed topic(s) with subscription options applied.
     """
-    qos = qos or 0
-    options = options or mqtt.SubscribeOptions(qos)
-    if options.QoS != qos:
+    options = options or SubscribeOptions()
+    if qos is not None and options.QoS != qos:
         options.QoS = qos
         logger.warning(
             f"Overriding QoS value in options with value {qos}",
@@ -232,7 +233,9 @@ class MQTTNode:
         self.node_type = self.__class__.__name__
         self.node_id = node_id if node_id else self._get_id()
         self.subscriptions = subscribe_config.topics if subscribe_config else []
-        self.subscribe_qos = subscribe_config.qos if subscribe_config else 0
+        self.subscribe_options = (
+            subscribe_config.options if subscribe_config else SubscribeOptions()
+        )
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -310,16 +313,14 @@ class MQTTNode:
             },
         )
 
-        self.restore_subscriptions()
-
     def connect(
         self,
         properties: Optional[Properties] = None,
         ensure_connected: bool = True,
-    ) -> int:
-        if properties is None:
-            properties = self.properties[PacketTypes.CONNECT].build_properties()
+    ) -> MQTTErrorCode:
         if self.is_connected() is False:
+            if properties is None:
+                properties = self.properties[PacketTypes.CONNECT].build_properties()
             error_code = self.client.connect(
                 host=self.hostname,
                 port=self.port,
@@ -332,10 +333,10 @@ class MQTTNode:
                     f"Connection attempt to {self.hostname}:{self.port} failed"
                 )
                 return error_code
-            self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
-        if ensure_connected:
-            self.ensure_connection()
-        return 0
+            # self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+            if ensure_connected:
+                self.ensure_connection()
+        return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def subscribe(
         self,
@@ -349,6 +350,8 @@ class MQTTNode:
         :qos: quality of service, 0 | 1 | 2
 
         """
+        if options is None:
+            options = self.subscribe_options
 
         topic = parse_topic(topic, qos, options)
 
@@ -409,9 +412,9 @@ class MQTTNode:
         elif isinstance(topic, str):
             append_topic(topic)
 
-    def restore_subscriptions(self, qos: int = 0):
+    def restore_subscriptions(self):
         for topic in self.subscriptions:
-            self.subscribe(topic, qos=qos)
+            self.subscribe(topic)
 
     def ensure_connection(self):
         """
@@ -438,6 +441,8 @@ class MQTTNode:
         # self.ensure_connection()
         if properties:
             properties = parse_properties_dict(properties)
+        else:
+            properties = self.properties[PacketTypes.PUBLISH].build_properties()
         return self.client.publish(topic, payload, qos, retain, properties=properties)
 
     def publish_every(
@@ -714,6 +719,23 @@ class MQTTNode:
             qos=self.latency_config.qos,
             properties=properties,
         )
+
+    def disconnect(
+        self,
+        ensure_disconnected: bool = True,
+        reasoncode: int | None = None,
+        properties=None,
+    ) -> int:
+        error_code = MQTTErrorCode.MQTT_ERR_SUCCESS
+        while ensure_disconnected and self.is_connected():
+            error_code = self.client.disconnect(
+                reasoncode=reasoncode, properties=properties
+            )
+            if error_code != 0:
+                self.logger.error(
+                    f"Failed to disconnect from broker at {self.hostname}:{self.port}, error code: {reasoncode}",
+                )
+        return error_code
 
     def __del__(self):
         try:

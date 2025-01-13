@@ -5,6 +5,7 @@ from typing import Dict, List, Mapping, Optional, Union
 import logging
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
+from paho.mqtt.subscribeoptions import SubscribeOptions
 from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY
 
 from config_loader import load_configs
@@ -26,7 +27,7 @@ class UnpackMixin(Mapping):
 
 
 @dataclass
-class MQTTBrokerConfig:
+class MQTTBrokerConfig(UnpackMixin):
     """Configuration for connecting to an MQTT broker."""
 
     username: str
@@ -82,20 +83,20 @@ class MQTTPublishProperties(MQTTPacketProperties):
 
     def __init__(self, message_expiry_interval=0, retain=False):
         self.message_expiry_interval = message_expiry_interval
-        self.retain_flag = retain
+        # self.retain_flag = retain
 
     def validate_properties(self):
         if self.message_expiry_interval < 0:
             raise ValueError(
                 "Message expiry interval must be greater than or equal to 0"
             )
-        if not isinstance(self.retain_flag, bool):
-            raise ValueError("Retain flag must be a boolean")
+        # if not isinstance(self.retain_flag, bool):
+        #     raise ValueError("Retain flag must be a boolean")
 
     def build_properties(self):
         properties = self._build_packet()
         properties.MessageExpiryInterval = self.message_expiry_interval
-        properties.Retain = self.retain_flag
+        # properties.Retain = self.retain_flag
 
         return properties
 
@@ -117,7 +118,7 @@ class SubscribeConfig:
     """Configuration for MQTT subscriptions."""
 
     topics: List[str]
-    qos: int = 0
+    options: SubscribeOptions = SubscribeOptions()
 
 
 @dataclass
@@ -227,7 +228,12 @@ def initialize_config(
     )
     subscribe_config = SubscribeConfig(
         topics=config["subscriptions"]["subscribe_topics"],
-        qos=config["subscriptions"]["subscribe_qos"],
+        options=SubscribeOptions(
+            qos=config["subscriptions"].get("qos", 0),
+            noLocal=config["subscriptions"].get("no_local", False),
+            retainAsPublished=config["subscriptions"].get("retain_as_published", False),
+            retainHandling=config["subscriptions"].get("retain_handling", 0),
+        ),
     )
 
     metrics_node_config = MQTTMetricsNodeConfig(
