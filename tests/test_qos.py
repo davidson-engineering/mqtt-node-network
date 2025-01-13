@@ -53,6 +53,7 @@ logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(LOG_FILEPATH_TEST)
 handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -62,11 +63,12 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger_lib = logging.getLogger("mqtt_node_network")
-logger_lib.setLevel(logging.DEBUG)
+logger_lib = logging.getLogger()
 handler = logging.FileHandler(LOG_FILEPATH_LIB)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(node_name)s | %(message)s"
+)
 handler.setFormatter(formatter)
 logger_lib.addHandler(handler)
 
@@ -132,9 +134,9 @@ def create_node(name, subscribe_config, broker_config=None, properties=None):
         name=name,
         node_id="",
     )
-    node.client.on_connect = on_connect
-    node.client.on_disconnect = on_disconnect
-    node.client.on_subscribe = on_subscribe
+    # node.client.on_connect = on_connect
+    # node.client.on_disconnect = on_disconnect
+    # node.client.on_subscribe = on_subscribe
 
     node.connect(ensure_connected=True)
 
@@ -142,9 +144,9 @@ def create_node(name, subscribe_config, broker_config=None, properties=None):
     # if not node.is_connected():
     #     raise MQTTException(f"Failed to connect {name} to broker.")
 
-    if subscribe_config is not None:
-        for topic in subscribe_config.topics:
-            node.message_callback_add(topic, message_callback)
+    # if subscribe_config is not None:
+    #     for topic in subscribe_config.topics:
+    #         node.message_callback_add(topic, message_callback)
 
     return node
 
@@ -175,7 +177,12 @@ def test_qos_level(qos=0):
         subscribe_config=None,
     )
 
+    while not subscriber.is_connected():
+        time.sleep(0.1)
+
     disconnect_node(subscriber, disconnect_reason)
+
+    time.sleep(0.1)
 
     publish_message(
         publisher, topic=message_topic, payload="Message 1", qos=qos, retain=False
@@ -187,15 +194,21 @@ def test_qos_level(qos=0):
     publish_message(publisher, topic=bool_topic, payload="True", qos=qos, retain=True)
     publish_message(publisher, topic=bool_topic, payload="False", qos=qos, retain=True)
 
+    time.sleep(0.1)
     reconnect_node(subscriber)
 
-    time.sleep(1)
+    while not subscriber.is_connected():
+        time.sleep(0.1)
+
+    time.sleep(0.1)
 
     disconnect_node(subscriber, disconnect_reason)
 
     time.sleep(1)
 
     reconnect_node(subscriber)
+    while not subscriber.is_connected():
+        time.sleep(0.1)
 
     logger.info("Waiting 5s for any last minute messages to be received")
 
