@@ -203,9 +203,12 @@ class MQTTNode:
         :param kwargs: Additional keyword arguments. See MQTTNode.__init__ for details. These will override the config file.
         :return: An initialized MQTTNode instance.
         """
-        config = initialize_config(config=config_file, secrets=secrets_file)[
-            cls.__name__
-        ]
+        configs = initialize_config(config=config_file, secrets=secrets_file)
+        config = config.get(cls.__name__, configs.get("MQTTNode", None))
+        if config is None:
+            raise NodeError(
+                f"Configuration for class {cls.__name__} not found in config file. Please check that the configuration exists"
+            )
         # Combine the configuration from the file with any additional keyword arguments
         # The keyword arguments will override the configuration file
         combined_args = {**config, **kwargs}
