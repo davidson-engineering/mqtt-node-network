@@ -33,7 +33,7 @@ formatters:
     format: '%(asctime)s %(levelname)-8s %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   node_id:
-    format: '%(asctime)s %(levelname)-8s (%(node_id)-8s) %(message)s'
+    format: '%(asctime)s %(levelname)-8s (%(node_name)s / %(node_id)s) %(message)s'
     datefmt: '%Y-%m-%d %H:%M:%S'
   verbose:
     format: "%(asctime)s,%(msecs)d - %(name)s - %(levelname)-8s - %(message)s"

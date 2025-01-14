@@ -16,14 +16,18 @@ from mqtt_node_network.configuration import (
     SubscribeConfig,
 )
 
+from mqtt_node_network.configuration import initialize_logging
+
+logger = initialize_logging("./config/logging.yaml")
+
 LOG_FILEPATH_TEST = "test_qos.log"
 LOG_FILEPATH_LIB = "mqtt_node_network.log"
 
 base_config = MQTTBrokerConfig(
-    username="user2",
-    password="Zti7ek2d1Vr25w6SBFcdhT98q1Q3B3pZ",
+    username="elevated",
+    password="dhbi723b23ivbg7gbifdhubw",
     keepalive=60,
-    hostname="pi-dev.local",
+    hostname="lm26consys1.gf.local",
     port=1883,
     timeout=0.2,
     reconnect_attempts=10,
@@ -63,12 +67,10 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger_lib = logging.getLogger()
+logger_lib = logging.getLogger("mqtt_node_network.node")
 handler = logging.FileHandler(LOG_FILEPATH_LIB)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(node_name)s | %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s | %(message)s")
 handler.setFormatter(formatter)
 logger_lib.addHandler(handler)
 
@@ -218,4 +220,4 @@ def test_qos_level(qos=0):
 
 
 if __name__ == "__main__":
-    test_qos_level(qos=2)
+    test_qos_level(qos=0)
