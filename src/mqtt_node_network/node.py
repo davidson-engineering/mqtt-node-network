@@ -204,7 +204,7 @@ class MQTTNode:
         :return: An initialized MQTTNode instance.
         """
         configs = initialize_config(config=config_file, secrets=secrets_file)
-        config = config.get(cls.__name__, configs.get("MQTTNode", None))
+        config = configs.get(cls.__name__, configs.get("MQTTNode", None))
         if config is None:
             raise NodeError(
                 f"Configuration for class {cls.__name__} not found in config file. Please check that the configuration exists"
