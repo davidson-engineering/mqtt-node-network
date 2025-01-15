@@ -65,29 +65,27 @@ def extend_or_append(list_topics: List[str], topic: Union[str, Tuple]) -> None:
             list_topics.append(item)
 
 
-def parse_packet_properties_dict(
-    packet_properties: Dict[str, Union[str, int]]
-) -> Properties:
+def parse_packet_properties_dict(properties: Dict[str, Union[str, int]]) -> Properties:
     """
     Convert a dictionary into MQTT packet_Properties.
 
     :param packet_properties: Dictionary containing packet_properties.
     :return: MQTT packet_Properties object.
     """
-    publish_packet_properties = Properties(PacketTypes.PUBLISH)
+    publish_properties = Properties(PacketTypes.PUBLISH)
 
-    if isinstance(packet_properties, dict):
-        for key, value in packet_properties.items():
+    if isinstance(properties, dict):
+        for key, value in properties.items():
             if not isinstance(value, str):
                 value = str(value)
-            publish_packet_properties.UserProperty = (key, value)
-    elif isinstance(packet_properties, packet_Properties):
-        publish_packet_properties = packet_properties
+            publish_properties.UserProperty = (key, value)
+    elif isinstance(properties, Properties):
+        publish_properties = properties
     else:
         raise ValueError(
-            "User property must be a dictionary or a paho.mqtt.packet_properties.packet_Properties instance"
+            "User property must be a dictionary or a paho.mqtt.properties.Properties instance"
         )
-    return publish_packet_properties
+    return publish_properties
 
 
 def parse_topic(
