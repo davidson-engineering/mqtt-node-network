@@ -189,7 +189,7 @@ class MQTTNodeConfig(UnpackMixin):
     broker_config: MQTTBrokerConfig
     node_id: Optional[str] = None
     subscribe_config: Optional[SubscribeConfig] = None
-    packet_properties: dict[str, MQTTPacketProperties] = None
+    packet_properties: Dict[str, MQTTPacketProperties] = None
 
 
 @dataclass
@@ -197,7 +197,7 @@ class MQTTMetricsNodeConfig(UnpackMixin):
     """Configuration for an MQTT Metrics Node."""
 
     topic_structure: str
-    datatype: type = dict
+    datatype: type = Dict
 
 
 @dataclass
@@ -222,7 +222,7 @@ def get_nested_value(config: Dict, target_key: str):
         return config[target_key]
 
     for key, value in config.items():
-        if isinstance(value, dict):
+        if isinstance(value, Dict):
             result = get_nested_value(value, target_key)
             if result is not None:
                 return result
