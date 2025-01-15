@@ -18,7 +18,12 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from prometheus_client import Gauge
 
-from mqtt_node_network.configuration import LatencyMonitoringConfig
+from mqtt_node_network.configuration import (
+    LatencyMonitoringConfig,
+    MQTTBrokerConfig,
+    SubscribeConfig,
+    MQTTPacketProperties,
+)
 from mqtt_node_network.node import MQTTNode, dict_to_user_properties
 
 
@@ -39,12 +44,12 @@ class LatencyNode(MQTTNode):
 
     def __init__(
         self,
-        broker_config: MQTTBrokerConfig,  # type: ignore
+        broker_config: MQTTBrokerConfig,
         name: str,
         node_id: Optional[str] = None,
-        subscribe_config: SubscribeConfig = None,  # type: ignore
-        latency_config: LatencyMonitoringConfig = None,  # type: ignore
-        properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
+        subscribe_config: SubscribeConfig = None,
+        latency_config: LatencyMonitoringConfig = None,
+        properties: dict[str, MQTTPacketProperties] = None,
     ):
         """
         Initialize an MQTTNode instance.

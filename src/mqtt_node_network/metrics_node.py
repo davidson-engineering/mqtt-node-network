@@ -12,7 +12,7 @@ from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.configuration import (
     MQTTBrokerConfig,
     SubscribeConfig,
-    LatencyMonitoringConfig,
+    MQTTPacketProperties,
 )
 
 logger = logging.getLogger(__name__)
@@ -152,13 +152,13 @@ class MQTTMetricsNode(MQTTNode):
     def __init__(
         self,
         name: str,
-        broker_config: MQTTBrokerConfig,  # type: ignore
+        broker_config: MQTTBrokerConfig,
         topic_structure: str,
         node_id: Optional[str] = None,
         buffer: Optional[Union[List, Deque]] = None,
-        subscribe_config: Optional[SubscribeConfig] = None,  # type: ignore
+        subscribe_config: Optional[SubscribeConfig] = None,
         datatype: Optional[Type] = dict,
-        packet_properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
+        packet_properties: dict[str, MQTTPacketProperties] = None,
     ):
         """
         Initialize the MQTTMetricsNode.

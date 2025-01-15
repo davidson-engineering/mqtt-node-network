@@ -24,6 +24,9 @@ from prometheus_client import Counter
 from mqtt_node_network.configuration import (
     TLSConfig,
     initialize_config,
+    MQTTBrokerConfig,
+    SubscribeConfig,
+    MQTTPacketProperties,
 )
 
 
@@ -207,11 +210,11 @@ class MQTTNode:
 
     def __init__(
         self,
-        broker_config: MQTTBrokerConfig,  # type: ignore
+        broker_config: MQTTBrokerConfig,
         name: str,
         node_id: Optional[str] = None,
-        subscribe_config: SubscribeConfig = None,  # type: ignore
-        packet_properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
+        subscribe_config: SubscribeConfig = None,
+        packet_properties: dict[str, MQTTPacketProperties] = None,
         transport_config: Optional[TLSConfig] = None,
     ):
         """
