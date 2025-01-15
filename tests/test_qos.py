@@ -1,6 +1,5 @@
 from __future__ import annotations
 import time
-import pytest
 import logging
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt import MQTTException
@@ -16,9 +15,6 @@ from mqtt_node_network.configuration import (
     SubscribeConfig,
 )
 
-from mqtt_node_network.configuration import initialize_logging
-
-logger = initialize_logging("./config/logging.yaml")
 
 base_config = MQTTBrokerConfig(
     username="rw",
@@ -139,11 +135,11 @@ def test_qos_level(qos=0):
     while not subscriber.is_connected():
         time.sleep(0.1)
 
-    logger.info("Waiting 5s for any last minute messages to be received")
+    logging.info("Waiting 5s for any last minute messages to be received")
 
     time.sleep(5)
 
-    logger.info("Test completed")
+    logging.info("Test completed")
 
 
 if __name__ == "__main__":
