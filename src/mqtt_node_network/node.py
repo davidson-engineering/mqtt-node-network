@@ -24,16 +24,11 @@ from paho.mqtt.properties import Properties
 from paho.mqtt.subscribeoptions import SubscribeOptions
 from prometheus_client import Counter, Gauge
 
-from mqtt_node_network.configuration import initialize_config, LatencyMonitoringConfig
-
-
-class NodeLoggingAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        extra = self.extra.copy()
-        if "extra" in kwargs:
-            extra.update(kwargs["extra"])
-        kwargs["extra"] = extra
-        return msg, kwargs
+from mqtt_node_network.configuration import (
+    TLSConfig,
+    initialize_config,
+    LatencyMonitoringConfig,
+)
 
 
 # Initialize your logger and adapter
@@ -182,12 +177,6 @@ class MQTTNode:
         labelnames=("node_id", "node_name", "node_type", "host"),
     )
 
-    node_client_to_client_latency = Gauge(
-        "node_client_to_client_latency",
-        "Estimated latency between two clients connected through the MQTT broker",
-        labelnames=("node_id", "node_name", "node_type", "host"),
-    )
-
     @classmethod
     def from_config_file(
         cls,
@@ -217,8 +206,8 @@ class MQTTNode:
         name: str,
         node_id: Optional[str] = None,
         subscribe_config: SubscribeConfig = None,  # type: ignore
-        latency_config: LatencyMonitoringConfig = None,  # type: ignore
         properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
+        transport_config: Optional[TLSConfig] = None,
     ):
         """
         Initialize an MQTTNode instance.
@@ -227,7 +216,6 @@ class MQTTNode:
         :param name: The name of the node.
         :param node_id: A unique identifier for the node (optional).
         :param subscribe_config: Configuration for subscribed topics.
-        :param latency_config: Configuration for latency monitoring.
         """
         self.name = name
         self.node_type = self.__class__.__name__
@@ -254,7 +242,7 @@ class MQTTNode:
             "password": broker_config.password,
         }
 
-        # Initialize client
+        # Initialize paho client
         client_id = self.name or self.node_id
         self.client = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
@@ -262,31 +250,17 @@ class MQTTNode:
             protocol=mqtt.MQTTv5,
         )
         self.client.username_pw_set(self._username, self._password)
+        if transport_config:
+            self.client.tls_set(
+                ca_certs=transport_config.cafile,
+                certfile=transport_config.certfile,
+                keyfile=transport_config.keyfile,
+                cert_reqs=transport_config.cert_reqs,
+                tls_version=transport_config.tls_version,
+                ciphers=transport_config.ciphers,
+            )
 
         # self.client.enable_logger(logger)
-
-        # Set latency metrics
-        self._latency_thread = None
-        self._stop_event = threading.Event()
-        self.latency_config = copy.deepcopy(latency_config) or LatencyMonitoringConfig()
-        self.latency_config.response_topic = (
-            f"{client_id}/{self.latency_config.response_topic}"
-        )
-        self.latency_config.request_topic = (
-            f"{client_id}/{self.latency_config.request_topic}"
-        )
-        if self.latency_config.enabled:
-            # Subscribe to latency monitoring topics
-            self.subscriptions.append(self.latency_config.response_topic)
-            self.subscriptions.append(self.latency_config.request_topic)
-
-            # Add callbacks for latency monitoring to take action when these messages are received
-            self.client.message_callback_add(
-                self.latency_config.response_topic, self._update_latency_metric
-            )
-            self.client.message_callback_add(
-                self.latency_config.request_topic, self._send_latency_response
-            )
 
         # Set client callbacks
         self.client.on_pre_connect = self.on_pre_connect
@@ -295,22 +269,25 @@ class MQTTNode:
         self.client.on_message = self.on_message
         self.client.on_disconnect = self.on_disconnect
         self.client.on_publish = self.on_publish
+        self.is_connected = self.client.is_connected
 
+        # Not currently used
+        # ***************************************************************************
         # self.client.on_subscribe = self.on_subscribe
         # self.client.on_unsubscribe = self.on_unsubscribe
         # self.client.on_log = self.on_log
-
-        self.is_connected = self.client.is_connected
         # self.loop_forever = self.client.loop_forever
 
-        self.logger = NodeLoggingAdapter(
+        # Set up custom logger for node with additional fields
+        self.logger = logging.LoggerAdapter(
             logger,
-            {
+            extra={
                 "node_id": self.node_id,
                 "node_name": self.name,
                 "node_type": self.node_type,
                 "host": self.hostname,
             },
+            merge_extra=True,
         )
 
     def connect(
@@ -535,49 +512,6 @@ class MQTTNode:
             )
         return self
 
-    def start_periodic_latency_check(self):
-        # Periodically send ping and publish latency
-        if self._latency_thread and self._latency_thread.is_alive():
-            self.logger.warning(
-                f"Thread '{self.node_id}-latency_thread' already exists"
-            )
-            return
-
-        def periodic_request() -> NoReturn:
-            while not self._stop_event.is_set():
-                try:
-                    self._send_latency_request()
-                except Exception as e:
-                    self.logger.error(f"Error during latency request: {e}")
-                time.sleep(self.latency_config.interval)
-
-        # Start a new thread
-        self.logger.info(
-            "Starting latency monitoring thread",
-            extra={
-                "thread_name": f"{self.node_id}-latency_thread",
-            },
-        )
-        self._stop_event.clear()
-        self._latency_thread = threading.Thread(
-            target=periodic_request,
-            name=f"{self.node_id}-latency_thread",
-            daemon=True,  # Optional: Make thread a daemon so it stops with the main program
-        )
-        self._latency_thread.start()
-
-    def stop_periodic_latency_check(self):
-        # Stop the periodic latency check thread
-        if self._latency_thread and self._latency_thread.is_alive():
-            self.logger.info(
-                "Stopping latency monitoring thread",
-                extra={
-                    "thread_name": f"{self.node_id}-latency_thread",
-                },
-            )
-            self._stop_event.set()
-            self._latency_thread.join()
-
     # Callbacks
     # ***************************************************************************
 
@@ -632,26 +566,6 @@ class MQTTNode:
         ).inc()
         self.logger.debug(f"Published message #{mid}")
 
-    def _update_latency_metric(self, client, userdata, message):
-        # Calculate the latency between clients
-        time_sent = float(
-            user_properties_to_dict(message.properties.UserProperty).get("time_sent")
-        )
-        time_received = float(
-            user_properties_to_dict(message.properties.UserProperty).get(
-                "time_received"
-            )
-        )
-        latency = (time_received - time_sent) * 1000  # latency in ms
-
-        self.node_client_to_client_latency.labels(
-            self.node_id, self.name, self.node_type, self.hostname
-        ).set(latency)
-
-        if self.latency_config.log_enabled:
-            # Log the latency
-            self.logger.info(f"Client to client latency {latency:.4f} ms")
-
     # def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
     #  self.logger.info("Subscribed to topic")
 
@@ -691,35 +605,6 @@ class MQTTNode:
         # Return a unique id for each node
         return f"{self.node_type}_{time.time_ns()}"
 
-    def _send_latency_request(self):
-        # Send a ping message and attach the time sent as a user property
-        properties = Properties(PacketTypes.PUBLISH)
-        properties.ResponseTopic = self.latency_config.response_topic
-        properties.UserProperty = dict_to_user_properties(
-            {"node_id": self.node_id, "time_sent": str(time.time())}
-        )
-
-        self.publish(
-            self.latency_config.request_topic,
-            payload="ping",
-            qos=self.latency_config.qos,
-            properties=properties,
-        )
-
-    def _send_latency_response(self, client, userdata, message):
-        # Send a response message with the same properties as the request
-        properties = Properties(PacketTypes.PUBLISH)
-        properties.UserProperty = message.properties.UserProperty
-        # Add the time the message was received
-        properties.UserProperty.append(("time_received", str(time.time())))
-
-        self.publish(
-            message.properties.ResponseTopic,
-            payload="pong",
-            qos=self.latency_config.qos,
-            properties=properties,
-        )
-
     def disconnect(
         self,
         ensure_disconnected: bool = True,
@@ -739,7 +624,6 @@ class MQTTNode:
 
     def __del__(self):
         try:
-            self.stop_periodic_latency_check()
             self.client.disconnect()
             self.logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
         except AttributeError:

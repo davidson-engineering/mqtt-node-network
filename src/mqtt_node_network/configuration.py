@@ -7,6 +7,7 @@ from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from paho.mqtt.subscribeoptions import SubscribeOptions
 from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY
+import ssl
 
 from config_loader import load_configs
 
@@ -101,6 +102,66 @@ class MQTTPublishProperties(MQTTPacketProperties):
         return properties
 
 
+@dataclass(frozen=True)
+class TLSConfig:
+    """TLS configuration class
+    Source: https://github.com/matteosox/pysparkplug/blob/1e149c4f6624c7ef9c2a4bc586c5bad196727540/src/pysparkplug/_config.py
+
+    Args:
+        ca_certs:
+            a string path to the Certificate Authority certificate files that
+            are to be treated as trusted by this client. If this is the only
+            option given then the client will operate in a similar manner to
+            a web browser. That is to say it will require the broker to have
+            a certificate signed by the Certificate Authorities in ca_certs
+            and will communicate using TLS v1.2, but will not attempt any
+            form of authentication. This provides basic network encryption
+            but may not be sufficient depending on how the broker is
+            configured.
+        certfile:
+            string pointing to the PEM encoded client certificate. If this
+            argument is not None then it will be used as client
+            information for TLS based authentication. Support for this
+            feature is broker dependent. Note that if this file is
+            encrypted and needs a password to decrypt it, Python will ask
+            for the password at the command line. It is not currently possible
+            to define a callback to provide the password.
+        keyfile:
+            string pointing to the PEM encoded private keys. If this
+            argument is not None then it will be used as client
+            information for TLS based authentication. Support for this
+            feature is broker dependent. Note that if this file is
+            encrypted and needs a password to decrypt it, Python will ask
+            for the password at the command line. It is not currently possible
+            to define a callback to provide the password.
+        cert_reqs:
+            defines the certificate requirements that the client imposes on the
+            broker. By default this is `ssl.CERT_REQUIRED`, which means that
+            the broker must provide a certificate. See the ssl pydoc for more
+            information on this parameter.
+        tls_version:
+            specifies the version of the SSL/TLS protocol to be used. By default
+            (if the python version supports it) the highest TLS version is
+            detected. If unavailable, TLS v1.2 is used. Previous versions
+            (all versions beginning with SSL) are possible but not recommended
+            due to possible security problems.
+        ciphers:
+            a string specifying which encryption ciphers are allowable for this
+            connection, or `None` to use the defaults. See the ssl pydoc for more
+            information.
+
+    Returns:
+        a TLSConfig object
+    """
+
+    ca_certs: Optional[str] = None
+    certfile: Optional[str] = None
+    keyfile: Optional[str] = None
+    cert_reqs: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED
+    tls_version: ssl._SSLMethod = ssl.PROTOCOL_TLS
+    ciphers: Optional[str] = None
+
+
 @dataclass
 class LatencyMonitoringConfig:
     """Configuration for latency monitoring."""
@@ -129,7 +190,6 @@ class MQTTNodeConfig(UnpackMixin):
     broker_config: MQTTBrokerConfig
     node_id: Optional[str] = None
     subscribe_config: Optional[SubscribeConfig] = None
-    latency_config: Optional[LatencyMonitoringConfig] = None
     properties: dict[str, MQTTPacketProperties] = None
 
 
@@ -139,6 +199,13 @@ class MQTTMetricsNodeConfig(UnpackMixin):
 
     topic_structure: str
     datatype: type = dict
+
+
+@dataclass
+class MQTTLatencyNodeConfig(UnpackMixin):
+    """Configuration for an MQTT Latency Node."""
+
+    latency_config: Optional[LatencyMonitoringConfig] = None
 
 
 def get_nested_value(config: Dict, target_key: str):
@@ -223,9 +290,6 @@ def initialize_config(
             retain=config["packet_properties"].get("retain", False),
         ),
     }
-    latency_config = LatencyMonitoringConfig(
-        **config["node"]["metrics"].get("latency", {})
-    )
     subscribe_config = SubscribeConfig(
         topics=config["subscriptions"]["subscribe_topics"],
         options=SubscribeOptions(
@@ -239,6 +303,11 @@ def initialize_config(
     metrics_node_config = MQTTMetricsNodeConfig(
         topic_structure=config["metrics_node"]["topic_structure"],
     )
+    latency_node_config = MQTTLatencyNodeConfig(
+        latency_config=LatencyMonitoringConfig(
+            **config["latency_node"].get("latency", {})
+        )
+    )
 
     node_config = MQTTNodeConfig(
         name=config["node"]["name"],
@@ -246,12 +315,13 @@ def initialize_config(
         properties=properties,
         node_id=config["node"].get("node_id", None),
         subscribe_config=subscribe_config,
-        latency_config=latency_config,
     )
 
     metrics_node_config = {**dict(node_config), **dict(metrics_node_config)}
+    latency_node_config = {**dict(node_config), **dict(latency_node_config)}
 
     return {
         "MQTTNode": node_config,
         "MQTTMetricsNode": metrics_node_config,
+        "MQTTLatencyNode": latency_node_config,
     }

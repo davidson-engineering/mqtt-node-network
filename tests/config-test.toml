@@ -3,16 +3,27 @@ secrets_filepath = ".env"
 [mqtt.broker]
 username = "${MQTT_BROKER_USERNAME}"
 password = "${MQTT_BROKER_PASSWORD}"
-hostname = "localhost"
+hostname = "${MQTT_BROKER_HOSTNAME}"
 port = 1_883
+timeout = 5
+reconnect_attempts = 5
+clean_session = 3                    # 0 - false, 1 - true, 3 - first-time-only
+
+[mqtt.packet_properties]
+message_expiry_interval = 0
+session_expiry_interval = 0
+# retain = false
 
 [mqtt.node]
-name = "test-node"
+name = "mqtt_client_1"
 publish_period = 1
 
 [mqtt.subscriptions]
-subscribe_topics = ["topic_0/#"]
-subscribe_qos = 0
+topics = ["topic_0/#"]
+qos = 0
+no_local = false # Determines if messages sent by its own connection should be received by the subscriber
+retain_as_published = true # Determines if the retained message should be sent as published or if the retained message should be sent as if it was a new message
+retain_handling = 0 # 0 - RETAIN_SEND_ON_SUBSCRIBE, 1 - RETAIN_SEND_IF_NEW_SUB or 2 - RETAIN_DO_NOT_SEND
 
 [mqtt.metrics_node]
 topic_structure = "module/measurement/field*"
