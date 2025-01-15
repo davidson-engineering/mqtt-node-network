@@ -157,8 +157,8 @@ class MQTTMetricsNode(MQTTNode):
         node_id: Optional[str] = None,
         buffer: Optional[Union[List, Deque]] = None,
         subscribe_config: Optional[SubscribeConfig] = None,  # type: ignore
-        latency_config: Optional[LatencyMonitoringConfig] = None,  # type: ignore
         datatype: Optional[Type] = dict,
+        packet_properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
     ):
         """
         Initialize the MQTTMetricsNode.
@@ -177,8 +177,8 @@ class MQTTMetricsNode(MQTTNode):
             broker_config,
             name=name,
             node_id=node_id,
-            latency_config=latency_config,
             subscribe_config=subscribe_config,
+            packet_properties=packet_properties,
         )
 
         self.buffer = buffer if buffer else deque()

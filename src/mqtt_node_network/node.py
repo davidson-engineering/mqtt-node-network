@@ -10,24 +10,20 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
-import socket
-import threading
 from typing import Dict, List, NoReturn, Optional, Tuple, Union
 import time
 import asyncio
-import copy
 
 import paho.mqtt.client as mqtt
 from paho.mqtt.enums import MQTTErrorCode
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
 from paho.mqtt.subscribeoptions import SubscribeOptions
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter
 
 from mqtt_node_network.configuration import (
     TLSConfig,
     initialize_config,
-    LatencyMonitoringConfig,
 )
 
 
@@ -66,27 +62,29 @@ def extend_or_append(list_topics: List[str], topic: Union[str, Tuple]) -> None:
             list_topics.append(item)
 
 
-def parse_properties_dict(properties: Dict[str, Union[str, int]]) -> Properties:
+def parse_packet_properties_dict(
+    packet_properties: Dict[str, Union[str, int]]
+) -> Properties:
     """
-    Convert a dictionary into MQTT Properties.
+    Convert a dictionary into MQTT packet_Properties.
 
-    :param properties: Dictionary containing properties.
-    :return: MQTT Properties object.
+    :param packet_properties: Dictionary containing packet_properties.
+    :return: MQTT packet_Properties object.
     """
-    publish_properties = Properties(PacketTypes.PUBLISH)
+    publish_packet_properties = Properties(PacketTypes.PUBLISH)
 
-    if isinstance(properties, dict):
-        for key, value in properties.items():
+    if isinstance(packet_properties, dict):
+        for key, value in packet_properties.items():
             if not isinstance(value, str):
                 value = str(value)
-            publish_properties.UserProperty = (key, value)
-    elif isinstance(properties, Properties):
-        publish_properties = properties
+            publish_packet_properties.UserProperty = (key, value)
+    elif isinstance(packet_properties, packet_Properties):
+        publish_packet_properties = packet_properties
     else:
         raise ValueError(
-            "User property must be a dictionary or a paho.mqtt.properties.Properties instance"
+            "User property must be a dictionary or a paho.mqtt.packet_properties.packet_Properties instance"
         )
-    return publish_properties
+    return publish_packet_properties
 
 
 def parse_topic(
@@ -117,24 +115,28 @@ def parse_topic(
         raise ValueError("Topic must be a string, tuple or list")
 
 
-def dict_to_user_properties(properties_dict: Dict[str, str]) -> List[Tuple[str, str]]:
+def dict_to_user_packet_properties(
+    packet_properties_dict: Dict[str, str]
+) -> List[Tuple[str, str]]:
     """
-    Convert a dictionary to a list of tuples for user properties.
+    Convert a dictionary to a list of tuples for user packet_properties.
 
-    :param properties_dict: Dictionary containing user properties.
+    :param packet_properties_dict: Dictionary containing user packet_properties.
     :return: List of tuples where each tuple is (key, value).
     """
-    return [(key, value) for key, value in properties_dict.items()]
+    return [(key, value) for key, value in packet_properties_dict.items()]
 
 
-def user_properties_to_dict(user_properties: List[Tuple[str, str]]) -> Dict[str, str]:
+def user_packet_properties_to_dict(
+    user_packet_properties: List[Tuple[str, str]]
+) -> Dict[str, str]:
     """
-    Convert a list of tuples (user properties) to a dictionary.
+    Convert a list of tuples (user packet_properties) to a dictionary.
 
-    :param user_properties: List of tuples where each tuple is (key, value).
-    :return: Dictionary containing user properties.
+    :param user_packet_properties: List of tuples where each tuple is (key, value).
+    :return: Dictionary containing user packet_properties.
     """
-    return dict(user_properties)
+    return dict(user_packet_properties)
 
 
 class NodeError(Exception):
@@ -209,7 +211,7 @@ class MQTTNode:
         name: str,
         node_id: Optional[str] = None,
         subscribe_config: SubscribeConfig = None,  # type: ignore
-        properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
+        packet_properties: dict[str, MQTTPacketProperties] = None,  # type: ignore
         transport_config: Optional[TLSConfig] = None,
     ):
         """
@@ -236,7 +238,7 @@ class MQTTNode:
         self.reconnect_attempts: int = broker_config.reconnect_attempts
         self.clean_session: bool = broker_config.clean_session
 
-        self.properties = properties
+        self.packet_properties = packet_properties
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
@@ -295,18 +297,18 @@ class MQTTNode:
 
     def connect(
         self,
-        properties: Optional[Properties] = None,
+        packet_properties: Optional[Properties] = None,
         ensure_connected: bool = True,
     ) -> MQTTErrorCode:
         if self.is_connected() is False:
-            if properties is None:
-                properties = self.properties[PacketTypes.CONNECT].build_properties()
+            if packet_properties is None:
+                packet_properties = self.packet_properties[PacketTypes.CONNECT].build()
             error_code = self.client.connect(
                 host=self.hostname,
                 port=self.port,
                 keepalive=self.keepalive,
                 clean_start=self.clean_session,
-                properties=properties,
+                properties=packet_properties,
             )
             if error_code != 0:
                 self.logger.warning(
@@ -358,12 +360,12 @@ class MQTTNode:
         # Add the topic to the list of subscriptions
         self.add_subscription_topic(topic)
 
-    def unsubscribe(self, topic: Union[str, list[str]], properties=None):
+    def unsubscribe(self, topic: Union[str, list[str]], packet_properties=None):
         """
         :param topic: A single string, or list of strings that are the subscription
             topics to unsubscribe from.
-        :param properties: (MQTT v5.0 only) a Properties instance setting the MQTT v5.0 properties
-            to be included. Optional - if not set, no properties are sent.
+        :param packet_properties: (MQTT v5.0 only) a packet_Properties instance setting the MQTT v5.0 packet_properties
+            to be included. Optional - if not set, no packet_properties are sent.
         """
         # remove from self.subscriptions
         if isinstance(topic, list):
@@ -420,13 +422,19 @@ class MQTTNode:
     def publish(self, topic, payload, qos=0, retain=False, properties=None):
         # self.ensure_connection()
         if properties:
-            properties = parse_properties_dict(properties)
+            properties = parse_packet_properties_dict(properties)
         else:
-            properties = self.properties[PacketTypes.PUBLISH].build_properties()
+            properties = self.packet_properties[PacketTypes.PUBLISH].build()
         return self.client.publish(topic, payload, qos, retain, properties=properties)
 
     def publish_every(
-        self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
+        self,
+        topic,
+        payload_func,
+        qos=0,
+        retain=False,
+        properties=None,
+        interval=1,
     ) -> NoReturn:
         """
         Publish a message every interval seconds.
@@ -436,7 +444,7 @@ class MQTTNode:
         :payload_func: function - A function that returns the payload to publish
         :qos: int - The Quality of Service level
         :retain: bool - Whether to retain the message
-        :properties: dict - MQTT properties
+        :packet_properties: dict - MQTT packet_properties
         :interval: int - The interval in seconds
         """
 
@@ -446,11 +454,17 @@ class MQTTNode:
             time.sleep(interval)
 
     async def publish_every_async(
-        self, topic, payload_func, qos=0, retain=False, properties=None, interval=1
+        self,
+        topic,
+        payload_func,
+        qos=0,
+        retain=False,
+        packet_properties=None,
+        interval=1,
     ) -> NoReturn:
         while True:
             payload = payload_func()
-            self.publish(topic, payload, qos, retain, properties)
+            self.publish(topic, payload, qos, retain, packet_properties)
             await asyncio.sleep(interval)
 
     def check_loop_running(self):
@@ -502,8 +516,6 @@ class MQTTNode:
             self.logger.error(
                 f"Failed to start loop: {mqtt.error_string(error_code)}",
             )
-        if self.latency_config.enabled:
-            self.start_periodic_latency_check()
 
         return self
 
@@ -569,10 +581,10 @@ class MQTTNode:
         ).inc()
         self.logger.debug(f"Published message #{mid}")
 
-    # def on_subscribe(self, client, userdata, mid, reason_code_list, properties):
+    # def on_subscribe(self, client, userdata, mid, reason_code_list, packet_properties):
     #  self.logger.info("Subscribed to topic")
 
-    # def on_unsubscribe(self, client, userdata, mid, properties, reason_codes):
+    # def on_unsubscribe(self, client, userdata, mid, packet_properties, reason_codes):
     #  self.logger.info("Unsubscribed from topic")
 
     def message_callback_add(self, topic: str, callback: callable):

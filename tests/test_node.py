@@ -26,32 +26,29 @@ def test_config_file_init():
     assert metrics_node.node_type == "MQTTMetricsNode"
 
 
-def test_subscribe_to_topic(mqtt_client):
+def test_subscribe_to_topic(mqtt_test_client):
 
-    SUBSCRIBE_TOPICS = ["+/#"]
+    DEVICE_ID = mqtt_test_client.node_id
+    SUBSCRIBE_TOPICS = [f"{DEVICE_ID}/test/topic", f"{DEVICE_ID}/test/topic2"]
     QOS = 0
 
-    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert mqtt_client.is_connected()
-    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    mqtt_client.restore_subscriptions()
-    assert len(mqtt_client.subscriptions) == 1
+    mqtt_test_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    assert mqtt_test_client.is_connected()
+    mqtt_test_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    mqtt_test_client.restore_subscriptions()
+    assert len(mqtt_test_client.subscriptions) == 2
 
     SUBSCRIBE_STRING = SUBSCRIBE_TOPICS[0]
-    mqtt_client.subscribe(topic=SUBSCRIBE_STRING, qos=QOS)
-    assert len(mqtt_client.subscriptions) == 1
+    mqtt_test_client.subscribe(topic=SUBSCRIBE_STRING, qos=QOS)
+    assert len(mqtt_test_client.subscriptions) == 2
 
     SUBSCRIBE_TUPLE = (SUBSCRIBE_STRING, QOS)
-    mqtt_client.subscribe(topic=SUBSCRIBE_TUPLE)
-    assert len(mqtt_client.subscriptions) == 1
+    mqtt_test_client.subscribe(topic=SUBSCRIBE_TUPLE)
+    assert len(mqtt_test_client.subscriptions) == 2
 
     SUBSCRIBE_TOPICS = [SUBSCRIBE_TOPICS[0], SUBSCRIBE_TOPICS[0]]
-    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert len(mqtt_client.subscriptions) == 1
+    mqtt_test_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
+    assert len(mqtt_test_client.subscriptions) == 2
 
-    SUBSCRIBE_TOPICS = ["topic1/#", "topic2/#"]
-    mqtt_client.subscribe(topic=SUBSCRIBE_TOPICS, qos=QOS)
-    assert len(mqtt_client.subscriptions) == 3
-
-    mqtt_client.client.disconnect()
-    assert not mqtt_client.is_connected()
+    mqtt_test_client.client.disconnect()
+    assert not mqtt_test_client.is_connected()

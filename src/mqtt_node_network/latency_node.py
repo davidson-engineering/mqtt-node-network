@@ -72,18 +72,17 @@ class LatencyNode(MQTTNode):
         self.latency_config.request_topic = (
             f"{self.client_id}/{self.latency_config.request_topic}"
         )
-        if self.latency_config.enabled:
-            # Subscribe to latency monitoring topics
-            self.subscriptions.append(self.latency_config.response_topic)
-            self.subscriptions.append(self.latency_config.request_topic)
+        # Subscribe to latency monitoring topics
+        self.subscriptions.append(self.latency_config.response_topic)
+        self.subscriptions.append(self.latency_config.request_topic)
 
-            # Add callbacks for latency monitoring to take action when these messages are received
-            self.client.message_callback_add(
-                self.latency_config.response_topic, self._update_latency_metric
-            )
-            self.client.message_callback_add(
-                self.latency_config.request_topic, self._send_latency_response
-            )
+        # Add callbacks for latency monitoring to take action when these messages are received
+        self.client.message_callback_add(
+            self.latency_config.response_topic, self._update_latency_metric
+        )
+        self.client.message_callback_add(
+            self.latency_config.request_topic, self._send_latency_response
+        )
 
     def start_periodic_latency_check(self):
         # Periodically send ping and publish latency

@@ -70,7 +70,7 @@ class MQTTConnectProperties(MQTTPacketProperties):
                 "Session expiry interval must be greater than or equal to 0"
             )
 
-    def build_properties(self):
+    def build(self):
         properties = self._build_packet()
         properties.SessionExpiryInterval = self.session_expiry_interval
 
@@ -94,7 +94,7 @@ class MQTTPublishProperties(MQTTPacketProperties):
         # if not isinstance(self.retain_flag, bool):
         #     raise ValueError("Retain flag must be a boolean")
 
-    def build_properties(self):
+    def build(self):
         properties = self._build_packet()
         properties.MessageExpiryInterval = self.message_expiry_interval
         # properties.Retain = self.retain_flag
@@ -166,7 +166,6 @@ class TLSConfig:
 class LatencyMonitoringConfig:
     """Configuration for latency monitoring."""
 
-    enabled: bool = False  # Whether to enable latency monitoring
     request_topic: str = "request"
     response_topic: str = "response"
     qos: int = 1  # MQTT Quality of Service level for latency monitoring
@@ -190,7 +189,7 @@ class MQTTNodeConfig(UnpackMixin):
     broker_config: MQTTBrokerConfig
     node_id: Optional[str] = None
     subscribe_config: Optional[SubscribeConfig] = None
-    properties: dict[str, MQTTPacketProperties] = None
+    packet_properties: dict[str, MQTTPacketProperties] = None
 
 
 @dataclass
@@ -277,7 +276,7 @@ def initialize_config(
         ),
     )
 
-    properties = {
+    packet_properties = {
         PacketTypes.CONNECT: MQTTConnectProperties(
             session_expiry_interval=config["packet_properties"].get(
                 "session_expiry_interval", 0
@@ -312,7 +311,7 @@ def initialize_config(
     node_config = MQTTNodeConfig(
         name=config["node"]["name"],
         broker_config=broker_config,
-        properties=properties,
+        packet_properties=packet_properties,
         node_id=config["node"].get("node_id", None),
         subscribe_config=subscribe_config,
     )

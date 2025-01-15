@@ -12,10 +12,9 @@ clean_session = 3                    # 0 - false, 1 - true, 3 - first-time-only
 [mqtt.packet_properties]
 message_expiry_interval = 0
 session_expiry_interval = 0
-# retain = false
 
 [mqtt.node]
-name = "mqtt_client_1"
+name = "test-node"
 publish_period = 1
 
 [mqtt.subscriptions]
@@ -28,7 +27,6 @@ retain_handling = 0 # 0 - RETAIN_SEND_ON_SUBSCRIBE, 1 - RETAIN_SEND_IF_NEW_SUB o
 [mqtt.metrics_node]
 topic_structure = "module/measurement/field*"
 
-[mqtt.node.metrics.latency]
-enabled = true
+[mqtt.latency_node]
 interval = 1
 qos = 1
