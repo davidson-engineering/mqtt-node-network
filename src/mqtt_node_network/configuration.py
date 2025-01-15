@@ -291,7 +291,7 @@ def initialize_config(
         ),
     }
     subscribe_config = SubscribeConfig(
-        topics=config["subscriptions"]["subscribe_topics"],
+        topics=config["subscriptions"]["topics"],
         options=SubscribeOptions(
             qos=config["subscriptions"].get("qos", 0),
             noLocal=config["subscriptions"].get("no_local", False),
