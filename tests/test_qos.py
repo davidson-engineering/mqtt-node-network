@@ -54,7 +54,7 @@ disconnect_reason = ReasonCode(packetType=PacketTypes.DISCONNECT, identifier=4)
 def publish_message(node: MQTTNode, topic, payload, qos, retain=False):
     topic_full = f"{node.name}/{topic}"
     node.publish(topic=topic_full, payload=payload, qos=qos, retain=retain)
-    logger.info(f"'{node.name}' published message on topic {topic}: {payload}")
+    logging.info(f"'{node.name}' published message on topic {topic}: {payload}")
 
 
 class MessageCounter(MQTTNode):
