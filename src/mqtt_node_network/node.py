@@ -33,6 +33,8 @@ from mqtt_node_network.configuration import (
 # Initialize your logger and adapter
 logger = logging.getLogger(__name__)
 
+import logging
+
 
 def shorten_data(data: str, max_length: int = 75) -> str:
     """Shorten data to a maximum length."""
@@ -138,6 +140,36 @@ def user_packet_properties_to_dict(
     :return: Dictionary containing user packet_properties.
     """
     return dict(user_packet_properties)
+
+
+class CustomLoggerAdapter(logging.LoggerAdapter):
+    """
+    A custom logger adapter that adds support for the merge_extra argument
+    for Python versions prior to 3.13.
+    """
+
+    def __init__(self, logger, extra=None, merge_extra=False):
+        # Check for Python version to decide whether to use merge_extra
+        import sys
+
+        if sys.version_info >= (3, 13):
+            super().__init__(logger, extra)
+            self.merge_extra = merge_extra
+        else:
+            # For Python versions < 3.13, ignore merge_extra
+            super().__init__(logger, extra)
+            self.merge_extra = False
+
+    def process(self, msg, kwargs):
+        """
+        Process the logging message and keyword arguments to insert contextual
+        information. This method is overridden to support the `merge_extra` feature.
+        """
+        if self.merge_extra and "extra" in kwargs:
+            kwargs["extra"] = {**self.extra, **kwargs["extra"]}
+        else:
+            kwargs["extra"] = self.extra
+        return msg, kwargs
 
 
 class NodeError(Exception):
@@ -285,7 +317,7 @@ class MQTTNode:
         # self.loop_forever = self.client.loop_forever
 
         # Set up custom logger for node with additional fields
-        self.logger = logging.LoggerAdapter(
+        self.logger = CustomLoggerAdapter(
             logger,
             extra={
                 "node_id": self.node_id,
