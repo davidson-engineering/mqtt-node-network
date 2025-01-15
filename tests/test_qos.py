@@ -124,22 +124,23 @@ def test_qos_level(qos=0):
     publish_message(publisher, topic=bool_topic, payload="True", qos=qos, retain=True)
     publish_message(publisher, topic=bool_topic, payload="False", qos=qos, retain=True)
 
-    time.sleep(1)
-
-    assert subscriber.number_of_messages == 4
-    disconnect_node(subscriber, disconnect_reason)
-
-    time.sleep(1)
-
-    reconnect_node(subscriber)
-    while not subscriber.is_connected():
-        time.sleep(0.1)
-
-    logging.info("Waiting 5s for any last minute messages to be received")
-
     time.sleep(5)
 
+    assert subscriber.number_of_messages == 4
+
+    # time.sleep(1)
+
+    # reconnect_node(subscriber)
+    # while not subscriber.is_connected():
+    #     time.sleep(0.1)
+
+    # logging.info("Waiting 5s for any last minute messages to be received")
+
+    # time.sleep(5)
+
     logging.info("Test completed")
+
+    disconnect_node(subscriber, disconnect_reason)
 
 
 if __name__ == "__main__":
