@@ -6,7 +6,6 @@ from mqtt_node_network.configuration import MQTTBrokerConfig
 
 @pytest.fixture(scope="session")
 def mqtt_test_client():
-    from mqtt_node_network.configuration import initialize_config
     from mqtt_node_network.node import MQTTNode
 
     broker_config = MQTTBrokerConfig(

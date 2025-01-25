@@ -1,28 +1,43 @@
-from mqtt_node_network.node import MQTTNode
+from mqtt_node_network.node import MQTTNode, MQTTBrokerConfig
 from mqtt_node_network.metrics_node import MQTTMetricsNode
 
 
 def test_config_file_init():
 
-    node = MQTTNode.from_config_file(
-        config_file="tests/config-test.toml", secrets_file="tests/test.env"
+    broker_config = MQTTBrokerConfig(
+        username="rw",
+        password="readwrite",
+        keepalive=60,
+        hostname="test.mosquitto.org",
+        port=1884,
+        timeout=1,
+        reconnect_attempts=5,
+        clean_session=1,
     )
 
-    assert node.name == "test-node"
-    assert node.node_id != "test-node"
-    assert node.hostname == "localhost"
+    node = MQTTNode.from_config_file(
+        config_file="tests/config-test.toml",
+        secrets_file="tests/test.env",
+        broker_config=broker_config,
+    )
+
+    assert node.name == "test_node_987123"
+    assert node.node_id != "test_node_987123"
+    assert node.hostname == broker_config.hostname
     assert node.node_type == "MQTTNode"
-    assert node.port == 1883
-    assert node._password == "super_secret_password"
-    assert node._username == "test-user"
+    assert node.port == broker_config.port
+    assert node._password == broker_config.password
+    assert node._username == broker_config.username
 
     metrics_node = MQTTMetricsNode.from_config_file(
-        config_file="tests/config-test.toml", secrets_file="tests/test.env"
+        config_file="tests/config-test.toml",
+        secrets_file="tests/test.env",
+        broker_config=broker_config,
     )
 
-    assert metrics_node.name == "test-node"
-    assert metrics_node.node_id != "test-node"
-    assert metrics_node.hostname == "localhost"
+    assert metrics_node.name == "test_node_987123"
+    assert metrics_node.node_id != "test_node_987123"
+    assert metrics_node.hostname == broker_config.hostname
     assert metrics_node.node_type == "MQTTMetricsNode"
 
 

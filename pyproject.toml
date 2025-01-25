@@ -2,7 +2,7 @@
 name = "mqtt-node-network"
 description = "This module is a wrapper around the paho-mqtt client which provides client base classes, logging, error handling, and prometheus metrics."
 
-version = "2.1.4"
+version = "2.1.5"
 
 readme = "README.md"
 requires-python = ">=3.8"
@@ -38,4 +38,6 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest>=8.3.4", "pytest-cov>=5.0.0"]
-metrics = ["fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.1"]
+metrics = [
+  "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.1",
+]

@@ -22,6 +22,7 @@ from paho.mqtt.subscribeoptions import SubscribeOptions
 from prometheus_client import Counter
 
 from mqtt_node_network.configuration import (
+    MQTTConnectProperties,
     TLSConfig,
     initialize_config,
     MQTTBrokerConfig,
@@ -271,7 +272,9 @@ class MQTTNode:
         self.reconnect_attempts: int = broker_config.reconnect_attempts
         self.clean_session: bool = broker_config.clean_session
 
-        self.packet_properties = packet_properties
+        self.packet_properties = (
+            packet_properties if packet_properties else MQTTConnectProperties()
+        )
 
         self._username: str = broker_config.username
         self._password: str = broker_config.password
@@ -406,7 +409,7 @@ class MQTTNode:
                 self.subscriptions.remove(t)
         elif isinstance(topic, str):
             self.subscriptions.remove(topic)
-        return self.client.unsubscribe(topic)
+        return self.client.unsubscribe(topic, properties=packet_properties)
 
     def add_subscription_topic(self, topic: Union[str, list, tuple]):
 
@@ -639,12 +642,12 @@ class MQTTNode:
                     "topic": topic,
                 },
             )
-            self.subscribe(topic, qos=self.subscribe_qos)
+            self.subscribe(topic, qos=self.subscribe_options.QoS)
         self.client.message_callback_add(topic, callback)
-        # logger.info(
-        #     f"Added callback to topic: {topic}",
-        #     extra={"topic": topic, "callback": callback.__name__},
-        # )
+        logger.debug(
+            f"Added callback to topic: {topic}",
+            extra={"topic": topic, "callback": callback.__name__},
+        )
 
     def on_log(self, client, userdata, level, buf):
         self.logger.debug("Log: {}".format(buf))
