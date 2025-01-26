@@ -10,6 +10,8 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
+import socket
+import threading
 from typing import Dict, List, NoReturn, Optional, Tuple, Union
 import time
 import asyncio
@@ -303,8 +305,9 @@ class MQTTNode:
 
         # self.client.enable_logger(logger)
 
+        self._connect_event = threading.Event()
+
         # Set client callbacks
-        self.client.on_pre_connect = self.on_pre_connect
         self.client.on_connect = self.on_connect
         self.client.on_connect_fail = self.on_connect_fail
         self.client.on_message = self.on_message
@@ -314,6 +317,7 @@ class MQTTNode:
 
         # Not currently used
         # ***************************************************************************
+        # self.client.on_pre_connect = self.on_pre_connect
         # self.client.on_subscribe = self.on_subscribe
         # self.client.on_unsubscribe = self.on_unsubscribe
         # self.client.on_log = self.on_log
@@ -335,27 +339,51 @@ class MQTTNode:
         self,
         packet_properties: Optional[Properties] = None,
         ensure_connected: bool = False,
-    ) -> MQTTErrorCode:
+    ) -> None:
         if self.is_connected() is False:
+            self._connect_event.clear()  # Clear the event before connecting
             if packet_properties is None:
                 packet_properties = self.packet_properties[PacketTypes.CONNECT].build()
-            error_code = self.client.connect(
+
+            self.client.reconnect_delay_set(min_delay=1, max_delay=30)
+
+            self.client.connect_async(
                 host=self.hostname,
                 port=self.port,
                 keepalive=self.keepalive,
                 clean_start=self.clean_session,
                 properties=packet_properties,
             )
-            if error_code != 0:
-                self.logger.warning(
-                    f"Connection attempt to {self.hostname}:{self.port} failed"
-                )
-                return error_code
-            # self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+            self.loop_start()
             if ensure_connected:
                 time.sleep(0.2)
                 self.ensure_connection()
-        return MQTTErrorCode.MQTT_ERR_SUCCESS
+
+    # def connect(
+    #     self,
+    #     packet_properties: Optional[Properties] = None,
+    #     ensure_connected: bool = False,
+    # ) -> MQTTErrorCode:
+    #     if self.is_connected() is False:
+    #         if packet_properties is None:
+    #             packet_properties = self.packet_properties[PacketTypes.CONNECT].build()
+    #         error_code = self.client.connect(
+    #             host=self.hostname,
+    #             port=self.port,
+    #             keepalive=self.keepalive,
+    #             clean_start=self.clean_session,
+    #             properties=packet_properties,
+    #         )
+    #         if error_code != 0:
+    #             self.logger.warning(
+    #                 f"Connection attempt to {self.hostname}:{self.port} failed"
+    #             )
+    #             return error_code
+    #         self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
+    #         if ensure_connected:
+    #             time.sleep(0.2)
+    #             self.ensure_connection()
+    #     return MQTTErrorCode.MQTT_ERR_SUCCESS
 
     def subscribe(
         self,
@@ -438,48 +466,53 @@ class MQTTNode:
         for topic in self.subscriptions:
             self.subscribe(topic)
 
-    def unsubscribe_all(self):
-        """
-        Unsubscribe from all topics
-        """
-        # Copy the list of topics to avoid skipping some topics after removing others
-        topics = self.subscriptions.copy()
-        for topic in topics:
+    def unsubscribe_all(self) -> List[int]:
+        error_codes = []
+        for topic in self.subscriptions.copy():
             err_code = self.unsubscribe(topic)
             if err_code != 0:
                 self.logger.error(
                     f"Failed to unsubscribe from topic {topic}",
                     extra={"topic": topic, "error_code": err_code},
                 )
+            error_codes.append(err_code)
+        return error_codes
 
     def ensure_connection(self) -> None:
-        """
-        Ensure that the client is connected to the broker.
-        Blocking function that will attempt to reconnect if the client is not connected.
-        """
-        if self.is_connected() is True:
+        if self.is_connected():
             return
-        reconnects = 1
-        while self.client.is_connected() is False:
-            try:
-                err_code = self.client.reconnect()
-                if err_code == 0:
-                    self.logger.info(
-                        f"Reconnected to broker at {self.hostname}:{self.port}",
-                    )
-                    # Loop until the client is connected, without calling is_connected
-                    while self.client.is_connected() is False:
-                        time.sleep(0.1)
-                    return
-            except (ConnectionRefusedError, ValueError):
-                self.logger.error(
-                    f"Failed to reconnect to broker at {self.hostname}:{self.port}",
-                )
-            reconnects += 1
-            self.logger.info(
-                f"Retry attempt #{reconnects} in {self.timeout}s",
-            )
-            time.sleep(self.timeout)
+        if not self._connect_event.wait(timeout=10):
+            # If `on_connect` does not fire within 10 seconds, raise an error
+            logger.error("Timed out waiting for on_connect.")
+
+    # def ensure_connection(self) -> None:
+    #     """
+    #     Ensure that the client is connected to the broker.
+    #     Blocking function that will attempt to reconnect if the client is not connected.
+    #     """
+    #     if self.is_connected() is True:
+    #         return
+    #     reconnects = 1
+    #     while self.client.is_connected() is False:
+    #         try:
+    #             err_code = self.client.reconnect()
+    #             if err_code == 0:
+    #                 self.logger.info(
+    #                     f"Reconnected to broker at {self.hostname}:{self.port}",
+    #                 )
+    #                 # Loop until the client is connected, without calling is_connected
+    #                 while self.client.is_connected() is False:
+    #                     time.sleep(0.1)
+    #                 return
+    #         except (ConnectionRefusedError, ValueError):
+    #             self.logger.error(
+    #                 f"Failed to reconnect to broker at {self.hostname}:{self.port}",
+    #             )
+    #         reconnects += 1
+    #         self.logger.info(
+    #             f"Retry attempt #{reconnects} in {self.timeout}s",
+    #         )
+    #         time.sleep(self.timeout)
 
     def publish(
         self,
@@ -605,16 +638,13 @@ class MQTTNode:
     # Callbacks
     # ***************************************************************************
 
-    def on_pre_connect(self, client, userdata):
-        if not self.check_loop_running():
-            self.loop_start()
-
     def on_connect(self, client, userdata, flags, reason_code, properties):
 
         if reason_code == 0:
             self.logger.debug(
                 f"Connected to broker at {client.host}:{client.port}",
             )
+            self._connect_event.set()
             if not flags.session_present:
                 logger.debug(
                     "No session present. Restoring subscriptions ...",
@@ -720,22 +750,12 @@ class MQTTNode:
         # Return a unique id for each node
         return f"{self.node_type}_{time.time_ns()}"
 
-    def disconnect(
-        self,
-        ensure_disconnected: bool = True,
-        reasoncode: int | None = None,
-        properties=None,
-    ) -> int:
-        error_code = MQTTErrorCode.MQTT_ERR_SUCCESS
-        while ensure_disconnected and self.is_connected():
-            error_code = self.client.disconnect(
-                reasoncode=reasoncode, properties=properties
-            )
-            if error_code != 0:
-                self.logger.error(
-                    f"Failed to disconnect from broker at {self.hostname}:{self.port}, error code: {reasoncode}",
-                )
-        return error_code
+    def disconnect(self, reasoncode=None, properties=None) -> int:
+        """Initiate an asynchronous disconnect, and return the Paho error code."""
+        rc = self.client.disconnect(reasoncode=reasoncode, properties=properties)
+        if rc != mqtt.MQTT_ERR_SUCCESS:
+            self.logger.error(f"Failed to initiate disconnect, error code: {rc}")
+        return rc
 
     def __del__(self):
         try:
@@ -744,3 +764,7 @@ class MQTTNode:
         except AttributeError:
             # Nothing to disconnect
             pass
+
+    def close(self):
+        self.__del__()
+        self.loop_stop()

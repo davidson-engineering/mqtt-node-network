@@ -43,7 +43,7 @@ subscribe_config = SubscribeConfig(
         qos=2,
         noLocal=False,
         retainAsPublished=True,
-        retainHandling=1,
+        retainHandling=0,
     ),
 )
 
@@ -53,7 +53,9 @@ disconnect_reason = ReasonCode(packetType=PacketTypes.DISCONNECT, identifier=4)
 
 def publish_message(node: MQTTNode, topic, payload, qos, retain=False):
     topic_full = f"{node.name}/{topic}"
-    node.publish(topic=topic_full, payload=payload, qos=qos, retain=retain)
+    node.publish(
+        topic=topic_full, payload=payload, qos=qos, retain=retain, ensure_published=True
+    )
     logging.info(f"'{node.name}' published message on topic {topic}: {payload}")
 
 
@@ -62,7 +64,7 @@ class MessageCounter(MQTTNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.number_of_messages = 0
-        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message
 
     def on_message(self, client, userdata, message):
         self.number_of_messages += 1
@@ -93,7 +95,9 @@ def create_node(name, subscribe_config, broker_config=None, properties=None):
 
 
 def disconnect_node(node: MQTTNode, reasoncode: ReasonCode):
-    node.disconnect(ensure_disconnected=True, reasoncode=reasoncode)
+    node.disconnect(reasoncode=reasoncode)
+    while node.is_connected():
+        time.sleep(0.1)
 
 
 def reconnect_node(node: MQTTNode):
@@ -124,23 +128,35 @@ def test_qos_level(qos=0):
     publish_message(publisher, topic=bool_topic, payload="True", qos=qos, retain=True)
     publish_message(publisher, topic=bool_topic, payload="False", qos=qos, retain=True)
 
-    time.sleep(5)
+    while subscriber.number_of_messages < 4:
+        time.sleep(1)
 
-    assert subscriber.number_of_messages == 4
+    reconnect_node(subscriber)
 
-    # time.sleep(1)
+    while not subscriber.is_connected():
+        time.sleep(0.1)
 
-    # reconnect_node(subscriber)
-    # while not subscriber.is_connected():
-    #     time.sleep(0.1)
+    logging.info("Waiting 5s for any last minute messages to be received")
 
-    # logging.info("Waiting 5s for any last minute messages to be received")
+    while subscriber.number_of_messages < 4:
+        time.sleep(1)
 
-    # time.sleep(5)
+    if qos == 0:
+        assert subscriber.number_of_messages == 4
+    elif qos == 1:
+        assert subscriber.number_of_messages == 5
+    elif qos == 2:
+        assert subscriber.number_of_messages == 4
 
     logging.info("Test completed")
 
     disconnect_node(subscriber, disconnect_reason)
+
+    publish_message(publisher, topic=bool_topic, payload="True", qos=qos, retain=True)
+    publish_message(publisher, topic=bool_topic, payload="False", qos=qos, retain=True)
+
+    while subscriber.number_of_messages < 4:
+        time.sleep(1)
 
 
 if __name__ == "__main__":

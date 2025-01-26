@@ -163,7 +163,6 @@ def test_ensure_published(mqtt_test_client: MQTTNode):
     mqtt_test_client.publish(
         topic=topic, payload=payload, qos=qos, ensure_published=True
     )
-    time.sleep(1)
     assert message_received
 
     mqtt_test_client.client.disconnect()
