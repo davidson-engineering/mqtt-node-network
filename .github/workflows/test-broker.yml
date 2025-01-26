@@ -72,5 +72,6 @@ jobs:
           MQTT_BROKER_PORT: 1883
           MQTT_BROKER_USERNAME: ""
           MQTT_BROKER_PASSWORD: ""
+          PYTHONPATH: ./src
         run: |
           uv run pytest
