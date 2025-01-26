@@ -150,7 +150,7 @@ def test_ensure_published(mqtt_test_client: MQTTNode):
 
     topic = "123456789/topic"
     payload = "Hello, World!"
-    qos = 0
+    qos = 2
 
     message_received = False
 
