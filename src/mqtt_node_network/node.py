@@ -334,7 +334,7 @@ class MQTTNode:
     def connect(
         self,
         packet_properties: Optional[Properties] = None,
-        ensure_connected: bool = True,
+        ensure_connected: bool = False,
     ) -> MQTTErrorCode:
         if self.is_connected() is False:
             if packet_properties is None:
@@ -353,6 +353,7 @@ class MQTTNode:
                 return error_code
             # self.client.socket().setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 2048)
             if ensure_connected:
+                time.sleep(0.2)
                 self.ensure_connection()
         return MQTTErrorCode.MQTT_ERR_SUCCESS
 
@@ -396,7 +397,9 @@ class MQTTNode:
         # Add the topic to the list of subscriptions
         self.add_subscription_topic(topic)
 
-    def unsubscribe(self, topic: Union[str, list[str]], packet_properties=None):
+    def unsubscribe(
+        self, topic: Union[str, list[str]], packet_properties=None
+    ) -> MQTTErrorCode:
         """
         :param topic: A single string, or list of strings that are the subscription
             topics to unsubscribe from.
@@ -409,7 +412,8 @@ class MQTTNode:
                 self.subscriptions.remove(t)
         elif isinstance(topic, str):
             self.subscriptions.remove(topic)
-        return self.client.unsubscribe(topic, properties=packet_properties)
+        err_code, _ = self.client.unsubscribe(topic, properties=packet_properties)
+        return err_code
 
     def add_subscription_topic(self, topic: Union[str, list, tuple]):
 
@@ -434,7 +438,21 @@ class MQTTNode:
         for topic in self.subscriptions:
             self.subscribe(topic)
 
-    def ensure_connection(self):
+    def unsubscribe_all(self):
+        """
+        Unsubscribe from all topics
+        """
+        # Copy the list of topics to avoid skipping some topics after removing others
+        topics = self.subscriptions.copy()
+        for topic in topics:
+            err_code = self.unsubscribe(topic)
+            if err_code != 0:
+                self.logger.error(
+                    f"Failed to unsubscribe from topic {topic}",
+                    extra={"topic": topic, "error_code": err_code},
+                )
+
+    def ensure_connection(self) -> None:
         """
         Ensure that the client is connected to the broker.
         Blocking function that will attempt to reconnect if the client is not connected.
@@ -442,9 +460,17 @@ class MQTTNode:
         if self.is_connected() is True:
             return
         reconnects = 1
-        while self.is_connected() is False:
+        while self.client.is_connected() is False:
             try:
-                self.client.reconnect()
+                err_code = self.client.reconnect()
+                if err_code == 0:
+                    self.logger.info(
+                        f"Reconnected to broker at {self.hostname}:{self.port}",
+                    )
+                    # Loop until the client is connected, without calling is_connected
+                    while self.client.is_connected() is False:
+                        time.sleep(0.1)
+                    return
             except (ConnectionRefusedError, ValueError):
                 self.logger.error(
                     f"Failed to reconnect to broker at {self.hostname}:{self.port}",
@@ -455,13 +481,26 @@ class MQTTNode:
             )
             time.sleep(self.timeout)
 
-    def publish(self, topic, payload, qos=0, retain=False, properties=None):
+    def publish(
+        self,
+        topic,
+        payload,
+        qos=0,
+        retain=False,
+        properties=None,
+        ensure_published=False,
+    ) -> mqtt.MQTTMessageInfo:
         # self.ensure_connection()
         if properties:
             properties = parse_packet_properties_dict(properties)
         else:
             properties = self.packet_properties[PacketTypes.PUBLISH].build()
-        return self.client.publish(topic, payload, qos, retain, properties=properties)
+        message_info = self.client.publish(
+            topic, payload, qos, retain, properties=properties
+        )
+        if ensure_published:
+            message_info.wait_for_publish(timeout=self.timeout)
+        return message_info
 
     def publish_every(
         self,
@@ -572,14 +611,17 @@ class MQTTNode:
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
 
-        self.logger.debug(
-            f"Connected to broker at {client.host}:{client.port}",
-        )
-        if not flags.session_present:
-            logger.debug(
-                "No session present. Restoring subscriptions ...",
+        if reason_code == 0:
+            self.logger.debug(
+                f"Connected to broker at {client.host}:{client.port}",
             )
-            self.restore_subscriptions()
+            if not flags.session_present:
+                logger.debug(
+                    "No session present. Restoring subscriptions ...",
+                )
+                self.restore_subscriptions()
+        else:
+            logger.error(f"Connection failed with code {reason_code}")
 
     def on_connect_fail(self, client, userdata):
         self.logger.error(
@@ -636,17 +678,39 @@ class MQTTNode:
         if not isinstance(topic, str):
             raise NodeError("Topic must be a string")
         if not topic in self.subscriptions:
-            self.logger.warning(
+            self.logger.debug(
                 f"Topic {topic} not in subscriptions. Adding topic to subscriptions.",
                 extra={
                     "topic": topic,
                 },
             )
-            self.subscribe(topic, qos=self.subscribe_options.QoS)
+            self.subscribe(
+                topic, qos=self.subscribe_options.QoS, options=self.subscribe_options
+            )
         self.client.message_callback_add(topic, callback)
         logger.debug(
             f"Added callback to topic: {topic}",
             extra={"topic": topic, "callback": callback.__name__},
+        )
+
+    def message_callback_remove(self, topic: str):
+        """
+        Remove a callback from a topic.
+        :topic: str - The topic to remove the callback from
+        """
+        if not isinstance(topic, str):
+            raise NodeError("Topic must be a string")
+        if not topic in self.subscriptions:
+            self.logger.debug(
+                f"Removal of callback on topic {topic} requested, but not in subscriptions. Continuing ...",
+                extra={
+                    "topic": topic,
+                },
+            )
+        self.client.message_callback_remove(topic)
+        logger.debug(
+            f"Removed callback from topic: {topic}",
+            extra={"topic": topic},
         )
 
     def on_log(self, client, userdata, level, buf):

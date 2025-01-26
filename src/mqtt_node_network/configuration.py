@@ -38,7 +38,7 @@ class MQTTBrokerConfig(UnpackMixin):
     port: int
     timeout: int
     reconnect_attempts: int
-    clean_session: bool = MQTT_CLEAN_START_FIRST_ONLY
+    clean_session: int = MQTT_CLEAN_START_FIRST_ONLY
 
 
 class MQTTPacketProperties:
