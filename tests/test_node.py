@@ -13,7 +13,7 @@ def test_config_file_init_node(broker_config):
 
     node = MQTTNode.from_config_file(
         config_file="tests/config-test.toml",
-        secrets_file="tests/test.env",
+        # secrets_file="tests/test.env",
         broker_config=broker_config,
         node_id="",  # Blank node_id
     )
@@ -31,7 +31,7 @@ def test_config_file_init_node(broker_config):
 def test_config_file_init_metrics_node(broker_config):
     metrics_node = MQTTMetricsNode.from_config_file(
         config_file="tests/config-test.toml",
-        secrets_file="tests/test.env",
+        # secrets_file="tests/test.env",
         broker_config=broker_config,
         node_id="my_metrics_node_7",
     )

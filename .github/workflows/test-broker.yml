@@ -17,17 +17,17 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-    # services:
-    #   emqx:
-    #     image: emqx:latest
-    #     env:
-    #       EMQX_NAME: test-emqx-broker
-    #       EMQX_HOST: gh-actions
-    #       EMQX_NODE_NAME: test-emqx-broker@gh-actions
-    #       EMQX_ALLOW_ANONYMOUS: true
-    #     ports:
-    #       - 1883:1883
-    #       - 8083:8083
+
+    services:
+      emqx:
+        image: emqx/emqx:latest
+        ports:
+          - 1883:1883
+          - 8083:8083
+        options: >-
+          --env EMQX_ALLOW_ANONYMOUS=true
+          --env EMQX_HOST=localhost
+
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +53,23 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           uv run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
+      - name: Install netcat
+        run: sudo apt-get update && sudo apt-get install -y netcat
+
+      - name: Wait for EMQX to be ready
+        run: |
+          for i in {1..30}; do
+            nc -z localhost 1883 && echo "EMQX is up" && exit 0
+            echo "Waiting for EMQX..."
+            sleep 1
+          done
+          echo "EMQX did not start in time" && exit 1
+          
       - name: Test with pytest
+        env:
+          MQTT_BROKER_HOSTNAME: localhost
+          MQTT_BROKER_PORT: 1883
+          MQTT_BROKER_USERNAME: ""
+          MQTT_BROKER_PASSWORD: ""
         run: |
           uv run pytest
