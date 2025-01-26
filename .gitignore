@@ -167,3 +167,4 @@ config/.*
 logs/**
 !.*-default
 !.github
+uv.lock
