@@ -1,11 +1,11 @@
 # MQTT Node Network
 
-`mqtt_node_network` is a Python package designed for interacting with MQTT brokers, offering a simple way to handle nodes and clients in a publish-subscribe messaging model. The package supports metrics collection, topic parsing, and Prometheus integration for monitoring message and byte transfers.
+`mqtt_node_network` is a wrapper for the [Eclipse Paho MQTT Python client](https://github.com/eclipse-paho/paho.mqtt.python/tree/master), offering a simple way to handle nodes and clients in a publish-subscribe messaging model. The package supports metrics collection, topic parsing, and Prometheus integration for monitoring message and byte transfers.
 
 ## Features
 
 - **MQTTNode Class**: The base class for connecting to an MQTT broker, allowing the creation of nodes for publishing and subscribing.
-- **MQTTClient Class**: An extension of `MQTTNode` that includes additional functionality for message buffering, topic parsing, and metrics collection.
+- **MQTTMetricsNode Class**: An extension of `MQTTNode` that includes additional functionality for message buffering, topic parsing, and metrics collection.
 - **Prometheus Metrics**: Integrated counters for tracking MQTT messages and byte traffic.
 - **Flexible Topic Parsing**: Define custom topic structures for extracting relevant information from MQTT topics.
 
