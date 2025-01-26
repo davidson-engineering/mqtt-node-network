@@ -40,3 +40,8 @@ dev = ["flake8>=5.0.4", "mypy>=1.14.1", "pytest>=8.3.4", "pytest-cov>=5.0.0"]
 metrics = [
   "fast-database-clients @ git+https://github.com/davidson-engineering/fast-database-clients.git@v2.2.1",
 ]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
