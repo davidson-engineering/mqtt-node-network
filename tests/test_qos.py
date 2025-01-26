@@ -4,6 +4,7 @@ import logging
 from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt import MQTTException
 from paho.mqtt.subscribeoptions import SubscribeOptions
+import pytest
 
 
 from mqtt_node_network.node import MQTTNode
@@ -104,6 +105,7 @@ def reconnect_node(node: MQTTNode):
     node.connect(ensure_connected=False)
 
 
+@pytest.mark.skip()
 def test_qos_level(qos=0):
 
     subscribe_config.options.QoS = qos

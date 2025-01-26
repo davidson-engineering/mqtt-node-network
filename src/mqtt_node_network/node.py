@@ -292,7 +292,8 @@ class MQTTNode:
             client_id=client_id,
             protocol=mqtt.MQTTv5,
         )
-        self.client.username_pw_set(self._username, self._password)
+        if self._username and self._password:
+            self.client.username_pw_set(self._username, self._password)
         if transport_config:
             self.client.tls_set(
                 ca_certs=transport_config.cafile,

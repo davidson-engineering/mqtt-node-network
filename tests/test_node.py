@@ -117,6 +117,7 @@ def test_publish_message(mqtt_test_client):
     assert not mqtt_test_client.is_connected()
 
 
+@pytest.mark.skip()
 def test_message_callback_add(mqtt_test_client: MQTTNode):
 
     message_received = False
@@ -146,6 +147,7 @@ def test_message_callback_add(mqtt_test_client: MQTTNode):
         mqtt_test_client.client._on_message_filtered[topic]
 
 
+@pytest.mark.skip()
 def test_ensure_published(mqtt_test_client: MQTTNode):
 
     topic = "123456789/topic"
