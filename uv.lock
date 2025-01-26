@@ -264,7 +264,7 @@ wheels = [
 
 [[package]]
 name = "mqtt-node-network"
-version = "2.1.4"
+version = "2.1.5"
 source = { virtual = "." }
 dependencies = [
     { name = "config-loader" },
