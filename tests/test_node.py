@@ -117,7 +117,7 @@ def test_publish_message(mqtt_test_client):
     assert not mqtt_test_client.is_connected()
 
 
-@pytest.mark.skip()
+# @pytest.mark.skip()
 def test_message_callback_add(mqtt_test_client: MQTTNode):
 
     message_received = False
@@ -131,13 +131,16 @@ def test_message_callback_add(mqtt_test_client: MQTTNode):
     mqtt_test_client.ensure_connection()
 
     # Add the callback, and assert that it was added to the client
-    mqtt_test_client.message_callback_add(topic, test_callback)
+    mqtt_test_client.message_callback_add(topic, test_callback, qos=0)
     assert (
         mqtt_test_client.client._on_message_filtered[topic].__name__
         == test_callback.__name__
     )
     # Ensure that the callback is called when a message is received
-    mqtt_test_client.publish(topic=topic, payload="Hello, World!", qos=0)
+    mqtt_test_client.publish(
+        topic=topic, payload="Hello, World!", qos=0, ensure_published=True
+    )
+    time.sleep(5)
     assert message_received
 
     # Remove the callback

@@ -696,7 +696,7 @@ class MQTTNode:
     # def on_unsubscribe(self, client, userdata, mid, packet_properties, reason_codes):
     #  self.logger.info("Unsubscribed from topic")
 
-    def message_callback_add(self, topic: str, callback: callable):
+    def message_callback_add(self, topic: str, callback: callable, qos: int = 0):
         """
         Add a callback to a topic. When a message is received on the topic, the callback will be called.
         The callback should take the form of a function that accepts three arguments: client, userdata, message.
@@ -715,9 +715,8 @@ class MQTTNode:
                     "topic": topic,
                 },
             )
-            self.subscribe(
-                topic, qos=self.subscribe_options.QoS, options=self.subscribe_options
-            )
+            qos = qos or self.subscribe_options.QoS
+            self.subscribe(topic, qos=qos, options=self.subscribe_options)
         self.client.message_callback_add(topic, callback)
         logger.debug(
             f"Added callback to topic: {topic}",

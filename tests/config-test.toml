@@ -1,10 +1,14 @@
 secrets_filepath = ".env"
 
 [mqtt.broker]
-username = "${MQTT_BROKER_USERNAME}"
-password = "${MQTT_BROKER_PASSWORD}"
-hostname = "${MQTT_BROKER_HOSTNAME}"
-port = "${MQTT_BROKER_PORT}"
+username = ""
+password = ""
+hostname = "localhost"
+port = 1883
+# username = "${MQTT_BROKER_USERNAME}"
+# password = "${MQTT_BROKER_PASSWORD}"
+# hostname = "${MQTT_BROKER_HOSTNAME}"
+# port = "${MQTT_BROKER_PORT}"
 timeout = 5
 reconnect_attempts = 5
 clean_session = 3                    # 0 - false, 1 - true, 3 - first-time-only

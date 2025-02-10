@@ -2,7 +2,7 @@
 name = "mqtt-node-network"
 description = "This module is a wrapper around the paho-mqtt client which provides client base classes, logging, error handling, and prometheus metrics."
 
-version = "2.2.0"
+version = "2.2.1"
 
 readme = "README.md"
 requires-python = ">=3.8"
@@ -48,9 +48,11 @@ metrics = [
 [tool.uv]
 package = true
 
-# [build-system]
-# requires = ["hatchling"]
-# build-backend = "hatchling.build"
-
-# [tool.hatch]
-# metadata.allow-direct-references = true
+[tool.pytest.ini_options]
+#addopts = "--maxfail=1 -s"
+#console_output_style = "progress"
+#log_cli = false
+log_level = "INFO"
+log_cli_format = "%(asctime)s %(levelname)s %(message)s"
+#log_file = "logs/pytest-logs.txt"
+#log_file_level = "INFO"

@@ -35,10 +35,14 @@ class MQTTBrokerConfig(UnpackMixin):
     password: str
     keepalive: int
     hostname: str
-    port: int
+    port: Union[str, int]
     timeout: int
     reconnect_attempts: int
     clean_session: int = MQTT_CLEAN_START_FIRST_ONLY
+
+    def __post_init__(self):
+        # Ensure port is stored as a string, even if passed as an int
+        self.port = str(self.port)
 
 
 class MQTTPacketProperties:
