@@ -41,8 +41,8 @@ class MQTTBrokerConfig(UnpackMixin):
     clean_session: int = MQTT_CLEAN_START_FIRST_ONLY
 
     def __post_init__(self):
-        # Ensure port is stored as a string, even if passed as an int
-        self.port = str(self.port)
+        # Ensure port is stored as a int, even if passed as an str
+        self.port = int(self.port)
 
 
 class MQTTPacketProperties:
