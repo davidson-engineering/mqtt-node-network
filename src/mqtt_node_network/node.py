@@ -30,6 +30,8 @@ from mqtt_node_network.configuration import (
     MQTTBrokerConfig,
     SubscribeConfig,
     MQTTPacketProperties,
+    MQTTWillConfig,
+    MQTTStatusConfig,
 )
 
 
@@ -249,6 +251,8 @@ class MQTTNode:
         subscribe_config: SubscribeConfig = None,
         packet_properties: dict[str, MQTTPacketProperties] = None,
         transport_config: Optional[TLSConfig] = None,
+        will_config: Optional[MQTTWillConfig] = None,
+        status_config: Optional[MQTTStatusConfig] = None,
     ):
         """
         Initialize an MQTTNode instance.
@@ -265,6 +269,8 @@ class MQTTNode:
         self.subscribe_options = (
             subscribe_config.options if subscribe_config else SubscribeOptions()
         )
+        self.will_config = will_config
+        self.status_config = status_config
 
         self.hostname: str = broker_config.hostname
         self.port: int = broker_config.port
@@ -302,6 +308,15 @@ class MQTTNode:
                 cert_reqs=transport_config.cert_reqs,
                 tls_version=transport_config.tls_version,
                 ciphers=transport_config.ciphers,
+            )
+
+        if self.will_config.enabled:
+            self.client.will_set(
+                self.will_config.topic,
+                self.will_config.payload,
+                qos=self.will_config.qos,
+                retain=self.will_config.retain,
+                properties=self.will_config.properties,
             )
 
         # self.client.enable_logger(logger)
@@ -359,6 +374,7 @@ class MQTTNode:
             if ensure_connected:
                 time.sleep(0.2)
                 self.ensure_connection()
+            self.update_node_status()
 
     # def connect(
     #     self,
@@ -486,35 +502,6 @@ class MQTTNode:
             # If `on_connect` does not fire within 10 seconds, raise an error
             logger.error("Timed out waiting for on_connect.")
 
-    # def ensure_connection(self) -> None:
-    #     """
-    #     Ensure that the client is connected to the broker.
-    #     Blocking function that will attempt to reconnect if the client is not connected.
-    #     """
-    #     if self.is_connected() is True:
-    #         return
-    #     reconnects = 1
-    #     while self.client.is_connected() is False:
-    #         try:
-    #             err_code = self.client.reconnect()
-    #             if err_code == 0:
-    #                 self.logger.info(
-    #                     f"Reconnected to broker at {self.hostname}:{self.port}",
-    #                 )
-    #                 # Loop until the client is connected, without calling is_connected
-    #                 while self.client.is_connected() is False:
-    #                     time.sleep(0.1)
-    #                 return
-    #         except (ConnectionRefusedError, ValueError):
-    #             self.logger.error(
-    #                 f"Failed to reconnect to broker at {self.hostname}:{self.port}",
-    #             )
-    #         reconnects += 1
-    #         self.logger.info(
-    #             f"Retry attempt #{reconnects} in {self.timeout}s",
-    #         )
-    #         time.sleep(self.timeout)
-
     def publish(
         self,
         topic,
@@ -636,6 +623,29 @@ class MQTTNode:
             )
         return self
 
+    def update_node_status(
+        self, status: Union[str, int, float] = None, properties: Properties = None
+    ) -> None:
+        """
+        Publish a status update to the status topic.
+        :param status: The status to publish.
+        :param properties: MQTT packet properties.
+        """
+        if self.status_config is None:
+            self.logger.debug("Status configuration not provided.")
+            return
+        status = status or self.status_config.payload
+        self.publish(
+            self.status_config.topic,
+            status,
+            qos=self.status_config.qos,
+            retain=self.status_config.retain,
+            properties=properties,
+        )
+        logger.debug(
+            f"Published status update: {status}",
+        )
+
     # Callbacks
     # ***************************************************************************
 
@@ -755,12 +765,13 @@ class MQTTNode:
         rc = self.client.disconnect(reasoncode=reasoncode, properties=properties)
         if rc != mqtt.MQTT_ERR_SUCCESS:
             self.logger.error(f"Failed to initiate disconnect, error code: {rc}")
+        else:
+            self.logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
         return rc
 
     def __del__(self):
         try:
-            self.client.disconnect()
-            self.logger.info(f"Disconnected from broker at {self.hostname}:{self.port}")
+            self.disconnect(reasoncode=mqtt.MQTT_RC_DISCONNECT_WITH_WILL_MSG)
         except AttributeError:
             # Nothing to disconnect
             pass

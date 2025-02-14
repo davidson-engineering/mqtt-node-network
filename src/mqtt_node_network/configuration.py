@@ -186,6 +186,30 @@ class SubscribeConfig:
 
 
 @dataclass
+class MQTTWillConfig(UnpackMixin):
+    """Configuration for an MQTT Will."""
+
+    enabled: bool
+    topic: str
+    payload: str
+    qos: int
+    retain: bool
+    properties: Union[Properties, None] = None
+
+
+@dataclass
+class MQTTStatusConfig(UnpackMixin):
+    """Configuration for an MQTT Status."""
+
+    enabled: bool
+    topic: str
+    payload: str
+    qos: int
+    retain: bool
+    properties: Union[Properties, None] = None
+
+
+@dataclass
 class MQTTNodeConfig(UnpackMixin):
     """Configuration for an MQTT node."""
 
@@ -194,6 +218,8 @@ class MQTTNodeConfig(UnpackMixin):
     node_id: Optional[str] = None
     subscribe_config: Optional[SubscribeConfig] = None
     packet_properties: Dict[str, MQTTPacketProperties] = None
+    will_config: Optional["MQTTWillConfig"] = None
+    status_config: Optional["MQTTStatusConfig"] = None
 
 
 @dataclass
@@ -312,12 +338,32 @@ def initialize_config(
         )
     )
 
+    will_config = MQTTWillConfig(
+        enabled=config["node"].get("will", {}).get("enabled", False),
+        topic=config["node"].get("will", {}).get("topic", ""),
+        payload=config["node"].get("will", {}).get("payload", ""),
+        qos=config["node"].get("will", {}).get("qos", 0),
+        retain=config["node"].get("will", {}).get("retain", False),
+        properties=config["node"].get("will", {}).get("properties", None),
+    )
+
+    status_config = MQTTStatusConfig(
+        enabled=config["node"].get("status", {}).get("enabled", False),
+        topic=config["node"].get("status", {}).get("topic", ""),
+        payload=config["node"].get("status", {}).get("payload", ""),
+        qos=config["node"].get("status", {}).get("qos", 0),
+        retain=config["node"].get("status", {}).get("retain", False),
+        properties=config["node"].get("status", {}).get("properties", None),
+    )
+
     node_config = MQTTNodeConfig(
         name=config["node"]["name"],
         broker_config=broker_config,
         packet_properties=packet_properties,
         node_id=config["node"].get("node_id", None),
         subscribe_config=subscribe_config,
+        will_config=will_config,
+        status_config=status_config,
     )
 
     metrics_node_config = {**dict(node_config), **dict(metrics_node_config)}

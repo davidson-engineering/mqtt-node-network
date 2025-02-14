@@ -11,6 +11,8 @@ from prometheus_client import Counter
 from mqtt_node_network.node import MQTTNode
 from mqtt_node_network.configuration import (
     MQTTBrokerConfig,
+    MQTTStatusConfig,
+    MQTTWillConfig,
     SubscribeConfig,
     MQTTPacketProperties,
 )
@@ -157,6 +159,8 @@ class MQTTMetricsNode(MQTTNode):
         node_id: Optional[str] = None,
         buffer: Optional[Union[List, Deque]] = None,
         subscribe_config: Optional[SubscribeConfig] = None,
+        will_config: Optional[MQTTWillConfig] = None,
+        status_config: Optional[MQTTStatusConfig] = None,
         datatype: Optional[Type] = dict,
         packet_properties: dict[str, MQTTPacketProperties] = None,
     ):
@@ -179,6 +183,8 @@ class MQTTMetricsNode(MQTTNode):
             node_id=node_id,
             subscribe_config=subscribe_config,
             packet_properties=packet_properties,
+            will_config=will_config,
+            status_config=status_config,
         )
 
         self.buffer = buffer if buffer else deque()

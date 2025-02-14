@@ -17,23 +17,18 @@ session_expiry_interval = 0
 [mqtt.node]
 name = "${MQTT_NODE_NAME}"
 publish_period = 1
+publish_status = false
+status_topic = "${MQTT_NODE_NAME}/status"
 
-[mqtt.node.status]
-enabled = true
-topic = "${MQTT_NODE_NAME}/status"
-payload = "online"
-retain = false
-qos = 0
-
-[mqtt.node.will]
-enabled = true
+[mqtt.will]
+enabled = false
 topic = "${MQTT_NODE_NAME}/status"
 payload = "offline"
 retain = false
 qos = 0
 
 [mqtt.subscriptions]
-topics = ["topic_0/#"]
+topics = []
 qos = 0
 no_local = false # Determines if messages sent by its own connection should be received by the subscriber
 retain_as_published = true # Determines if the retained message should be sent as published or if the retained message should be sent as if it was a new message

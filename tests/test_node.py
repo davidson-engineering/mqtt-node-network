@@ -3,7 +3,7 @@ import time
 import typing
 
 import pytest
-from mqtt_node_network.node import MQTTNode, MQTTBrokerConfig
+from mqtt_node_network.node import MQTTNode, MQTTBrokerConfig, Properties, PacketTypes
 from mqtt_node_network.metrics_node import MQTTMetricsNode
 
 from conftest import TEST_NODE_NAME
@@ -172,3 +172,49 @@ def test_ensure_published(mqtt_test_client: MQTTNode):
 
     mqtt_test_client.client.disconnect()
     assert not mqtt_test_client.is_connected()
+
+
+def test_update_node_status(mqtt_test_client: MQTTNode):
+    # Mock the publish method to track calls
+    from unittest.mock import Mock
+
+    mqtt_test_client.publish = Mock()
+
+    # Test when status_config is None
+    mqtt_test_client.status_config = None
+    mqtt_test_client.update_node_status(status="online")
+    mqtt_test_client.publish.assert_not_called()
+
+    # Test with status_config provided
+    class MockStatusConfig:
+        topic = "status/topic"
+        payload = "default_status"
+        qos = 1
+        retain = False
+
+    mqtt_test_client.status_config = MockStatusConfig()
+
+    # Test with custom status
+    mqtt_test_client.update_node_status(status="online")
+    mqtt_test_client.publish.assert_called_once_with(
+        "status/topic", "online", qos=1, retain=False, properties=None
+    )
+
+    # Test with default status
+    mqtt_test_client.publish.reset_mock()
+    mqtt_test_client.update_node_status()
+    mqtt_test_client.publish.assert_called_once_with(
+        "status/topic", "default_status", qos=1, retain=False, properties=None
+    )
+
+    # Test with custom properties
+    mock_properties = Properties(PacketTypes.PUBLISH)
+    mqtt_test_client.publish.reset_mock()
+    mqtt_test_client.update_node_status(properties=mock_properties)
+    mqtt_test_client.publish.assert_called_once_with(
+        "status/topic",
+        "default_status",
+        qos=1,
+        retain=False,
+        properties=mock_properties,
+    )
