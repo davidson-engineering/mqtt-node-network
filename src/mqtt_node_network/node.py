@@ -124,7 +124,7 @@ def parse_topic(
 
 
 def dict_to_user_packet_properties(
-    packet_properties_dict: Dict[str, str]
+    packet_properties_dict: Dict[str, str],
 ) -> List[Tuple[str, str]]:
     """
     Convert a dictionary to a list of tuples for user packet_properties.
@@ -136,7 +136,7 @@ def dict_to_user_packet_properties(
 
 
 def user_packet_properties_to_dict(
-    user_packet_properties: List[Tuple[str, str]]
+    user_packet_properties: List[Tuple[str, str]],
 ) -> Dict[str, str]:
     """
     Convert a list of tuples (user packet_properties) to a dictionary.
@@ -431,7 +431,7 @@ class MQTTNode:
                 },
             )
         else:
-            self.logger.debug(
+            self.logger.info(
                 f"Subscribed to topic: {topic}",
                 extra={
                     "topic": topic,
@@ -652,7 +652,7 @@ class MQTTNode:
     def on_connect(self, client, userdata, flags, reason_code, properties):
 
         if reason_code == 0:
-            self.logger.debug(
+            self.logger.info(
                 f"Connected to broker at {client.host}:{client.port}",
             )
             self._connect_event.set()
@@ -672,7 +672,7 @@ class MQTTNode:
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ):
-        self.logger.debug(
+        self.logger.info(
             f"Disconnected with result code: {reason_code}",
         )
 
@@ -686,7 +686,7 @@ class MQTTNode:
             self.node_id, self.name, self.node_type, self.hostname
         ).inc(len(message.payload))
 
-        self.logger.info(
+        self.logger.debug(
             f"Received message on topic '{message.topic}': {shorten_data(message.payload.decode())}",
             extra={
                 "topic": message.topic,
